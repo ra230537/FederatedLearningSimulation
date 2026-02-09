@@ -18,6 +18,9 @@ class Server:
         self.accuracy_history = []
         self.start_time = time.time()
 
+        self.lock = threading.Lock()
+        self.event = threading.Event()
+
     def create_model(self):
         self.global_model = tf.keras.models.Sequential([
             tf.keras.layers.Dense(128, activation='relu', input_shape=(784,)),
@@ -34,13 +37,14 @@ class Server:
     def aggregate_update(self, client, updated_weights, round):
 
         print(f"Agregando atualização {round + 1} do cliente {client.client_id}.")
-        global_weights = self.global_model.get_weights()
+        with self.lock:
+            global_weights = self.global_model.get_weights()
 
-        for i in range(len(global_weights)):
-            global_weights[i] = (global_weights[i] + updated_weights[i])/2
-        loss, accuracy, time_stamp = self.evaluate()
-        self.accuracy_history.append((loss, accuracy, time_stamp))
-        self.global_model.set_weights(global_weights)
+            for i in range(len(global_weights)):
+                global_weights[i] = (global_weights[i] + updated_weights[i])/2
+            loss, accuracy, time_stamp = self.evaluate()
+            self.accuracy_history.append((loss, accuracy, time_stamp))
+            self.global_model.set_weights(global_weights)
 
     def evaluate(self):
         self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
@@ -69,6 +73,8 @@ class Server:
         for client, thread in threads:
             if thread.is_alive():
                 print(f"Cliente {client.client_id} excedeu o tempo limite.")
+        # Make the flag true and we put a condition to stop the training if it is true.
+        self.event.set()
 
         loss, accuracy, now = self.evaluate()
         accuracy_axis = [self.accuracy_history[i][1] for i in range(len(self.accuracy_history))]

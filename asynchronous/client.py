@@ -27,6 +27,9 @@ class Client:
 
     def train_multiple(self, number_of_updates, local_epochs, batch_size, server):
         for update_round in range(number_of_updates):
+            if server.event.is_set():
+                print(f'[TIMEOUT] Parando a execução do cliente {self.client_id} durante a atualização {update_round + 1}')
+                return
             print(f"Atualização {update_round + 1} do cliente {self.client_id}")
             self.local_model.set_weights(server.get_model_weights())
             updated_weights = self.train(local_epochs, batch_size)
