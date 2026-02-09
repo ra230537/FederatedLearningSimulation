@@ -3,6 +3,7 @@
 import tensorflow as tf
 import threading
 import time
+import matplotlib.pyplot as plt
 
 class Server:
     def __init__(self, clients, num_clients, num_updates, timeout, local_epochs, batch_size, testing_data):
@@ -14,6 +15,8 @@ class Server:
         self.batch_size = batch_size
         self.global_model = None
         self.testing_data = testing_data
+        self.accuracy_history = []
+        self.start_time = time.time()
 
     def create_model(self):
         self.global_model = tf.keras.models.Sequential([
@@ -30,18 +33,20 @@ class Server:
     
     def aggregate_update(self, client, updated_weights, round):
 
-        print(f"Agregando atualização {round + 1} de {client}.")
+        print(f"Agregando atualização {round + 1} do cliente {client.client_id}.")
         global_weights = self.global_model.get_weights()
 
         for i in range(len(global_weights)):
             global_weights[i] = (global_weights[i] + updated_weights[i])/2
-
+        loss, accuracy, time_stamp = self.evaluate()
+        self.accuracy_history.append((loss, accuracy, time_stamp))
         self.global_model.set_weights(global_weights)
 
     def evaluate(self):
         self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         loss, accuracy = self.global_model.evaluate(self.testing_data.batch(self.batch_size), verbose=0)
-        return loss, accuracy
+        now = time.time()
+        return loss, accuracy, now - self.start_time
 
     def start_training(self):
 
@@ -54,22 +59,25 @@ class Server:
             threads.append((client, thread))
             thread.start()
 
-        s=time.time()
 
-        while time.time() - s < self.timeout:
+        while time.time() - self.start_time < self.timeout:
             done_training = all(not t.is_alive() for _, t in threads)
             if done_training:
                 break
             time.sleep(0.5) 
 
-        for client_id, thread in threads:
+        for client, thread in threads:
             if thread.is_alive():
-                print(f"Cliente {client_id} excedeu o tempo limite.")
+                print(f"Cliente {client.client_id} excedeu o tempo limite.")
 
-        loss, accuracy = self.evaluate()
-
+        loss, accuracy, now = self.evaluate()
+        accuracy_axis = [self.accuracy_history[i][1] for i in range(len(self.accuracy_history))]
+        time_axis = [self.accuracy_history[i][2] for i in range(len(self.accuracy_history))]
+        print(f"Dados historicos: {accuracy_axis}")
         print(f"Treinamento federado assíncrono concluído.")
         print(f"Perda final do modelo global: {loss:.4f}")
         print(f"Acurácia final do modelo global: {accuracy:.4f}")
+        plt.plot(time_axis, accuracy_axis)
+        plt.show()
 
 
