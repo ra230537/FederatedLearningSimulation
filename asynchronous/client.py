@@ -1,5 +1,6 @@
 #Client.py
 import time
+import tensorflow as tf
 import random
 
 class Client:
@@ -9,7 +10,7 @@ class Client:
         self.client_id = client_id
 
     def setup_client(self, model):
-        self.local_model = model
+        self.local_model = tf.keras.models.clone_model(model)
         self.local_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     def train(self, local_epochs, batch_size):

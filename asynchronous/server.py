@@ -78,6 +78,6 @@ class Server:
         print(f"Perda final do modelo global: {loss:.4f}")
         print(f"Acurácia final do modelo global: {accuracy:.4f}")
         plt.plot(time_axis, accuracy_axis)
-        plt.show()
+        plt.savefig('output/accuracy.png')
 
 

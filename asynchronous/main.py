@@ -51,8 +51,8 @@ def main(num_clients, num_updates, timeout, epochs, batch_size):
 
 if __name__ == "__main__":
     num_clients = 5
-    num_updates = 10
-    timeout = 30
+    num_updates = 5
+    timeout = 12
     epochs = 1
     batch_size = 32
 
