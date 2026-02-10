@@ -27,6 +27,7 @@ class Server:
             tf.keras.layers.Dense(128, activation='relu', input_shape=(784,)),
             tf.keras.layers.Dense(10, activation='softmax')
         ])
+        self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     def setup_clients(self):
         for client in self.clients:
@@ -36,9 +37,14 @@ class Server:
         return self.global_model.get_weights()
     
     def aggregate_update(self, client, updated_params, round):
+        # Garante que nós não vamos agregar nada depois do timeout
+        if self.event.is_set():
+            return
         updated_weights, client_version, start_time = updated_params
 
         print(f"Agregando atualização {round + 1} do cliente {client.client_id}.")
+
+        # Evitar concorrência nas operações
         with self.lock:
             global_weights = self.global_model.get_weights()
 
@@ -47,10 +53,12 @@ class Server:
             loss, accuracy, time_stamp = self.evaluate()
             self.accuracy_history.append((loss, accuracy, time_stamp))
             self.global_model.set_weights(global_weights)
+
+            # Atualizar versão do servidor
             self.version += 1
 
     def evaluate(self):
-        self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        
         loss, accuracy = self.global_model.evaluate(self.testing_data.batch(self.batch_size), verbose=0)
         now = time.time()
         return loss, accuracy, now - self.start_time
