@@ -17,6 +17,7 @@ class Server:
         self.testing_data = testing_data
         self.accuracy_history = []
         self.start_time = time.time()
+        self.version = 0
 
         self.lock = threading.Lock()
         self.event = threading.Event()
@@ -34,7 +35,8 @@ class Server:
     def get_model_weights(self):
         return self.global_model.get_weights()
     
-    def aggregate_update(self, client, updated_weights, round):
+    def aggregate_update(self, client, updated_params, round):
+        updated_weights, client_version, start_time = updated_params
 
         print(f"Agregando atualização {round + 1} do cliente {client.client_id}.")
         with self.lock:
@@ -45,6 +47,7 @@ class Server:
             loss, accuracy, time_stamp = self.evaluate()
             self.accuracy_history.append((loss, accuracy, time_stamp))
             self.global_model.set_weights(global_weights)
+            self.version += 1
 
     def evaluate(self):
         self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
