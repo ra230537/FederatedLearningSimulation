@@ -47,9 +47,8 @@ class Server:
         # Evitar concorrência nas operações
         with self.lock:
             global_weights = self.global_model.get_weights()
-
-            for i in range(len(global_weights)):
-                global_weights[i] = (global_weights[i] + updated_weights[i])/2
+            self.update_global_weights(global_weights, updated_weights)
+            
             loss, accuracy, time_stamp = self.evaluate()
             self.accuracy_history.append((loss, accuracy, time_stamp))
             self.global_model.set_weights(global_weights)
@@ -62,6 +61,10 @@ class Server:
         loss, accuracy = self.global_model.evaluate(self.testing_data.batch(self.batch_size), verbose=0)
         now = time.time()
         return loss, accuracy, now - self.start_time
+
+    def update_global_weights(self, global_weights, updated_weights):
+        for i in range(len(global_weights)):
+            global_weights[i] = (global_weights[i] + updated_weights[i])/2
 
     def start_training(self):
 
