@@ -18,6 +18,9 @@ class Server:
         self.accuracy_history = []
         self.start_time = time.time()
         self.version = 0
+        self.BASE_ALPHA = 0.8
+        self.DECAY_OF_BASE_ALPHA = 0.999
+        self.TARDINESS_SENSITIVITY = 0.075
 
         self.lock = threading.Lock()
         self.event = threading.Event()
@@ -40,14 +43,14 @@ class Server:
         # Garante que nós não vamos agregar nada depois do timeout
         if self.event.is_set():
             return
-        updated_weights, client_version, start_time = updated_params
+        updated_weights, client_version, start_training_time = updated_params
 
         print(f"Agregando atualização {round + 1} do cliente {client.client_id}.")
 
         # Evitar concorrência nas operações
         with self.lock:
             global_weights = self.global_model.get_weights()
-            self.update_global_weights(global_weights, updated_weights)
+            self.update_global_weights(global_weights, updated_weights, client_version, start_training_time)
             
             loss, accuracy, time_stamp = self.evaluate()
             self.accuracy_history.append((loss, accuracy, time_stamp))
@@ -62,9 +65,15 @@ class Server:
         now = time.time()
         return loss, accuracy, now - self.start_time
 
-    def update_global_weights(self, global_weights, updated_weights):
+    def update_global_weights(self, global_weights, updated_weights, client_version, start_training_time):
+        delay = time.time() - start_training_time
+        staleness = self.version - client_version
+        agg_factor = self.get_aggregation_factor(staleness, delay)
         for i in range(len(global_weights)):
-            global_weights[i] = (global_weights[i] + updated_weights[i])/2
+            global_weights[i] = global_weights[i]*(1-agg_factor) + agg_factor*updated_weights[i]
+
+    def get_aggregation_factor(self, staleness, delay):
+        return self.BASE_ALPHA*(self.DECAY_OF_BASE_ALPHA**staleness)*(1/(1+self.TARDINESS_SENSITIVITY*delay))
 
     def start_training(self):
 
