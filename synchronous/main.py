@@ -42,7 +42,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
 
     clients = [Client(training_data_clients[i], i+1) for i in range(number_of_clients)]
 
-    server = Server(clients, number_of_clients, number_of_rounds, timeout, local_epochs, batch_size, testing_data)
+    server = Server(clients, number_of_clients, number_of_rounds, timeout, local_epochs, batch_size, testing_data, True, 0.8)
 
     server.create_model()
     server.setup_clients()

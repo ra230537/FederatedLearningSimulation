@@ -6,17 +6,19 @@ import time
 import matplotlib.pyplot as plt
 
 class Server:
-    def __init__(self, clients, num_clients, round_num, timeout, local_epochs, batch_size, testing_data):
+    def __init__(self, clients, num_clients, round_num, timeout, local_epochs, batch_size, testing_data, is_percentage_boundary, percentage_boundary):
         self.clients = clients
         self.number_of_clients = num_clients
         self.number_of_rounds = round_num
-        self.start_time=time.time()
+        self.start_time = time.time()
         self.timeout = timeout
         self.local_epochs = local_epochs
         self.batch_size = batch_size
         self.global_model = None
         self.testing_data = testing_data
         self.accuracy_history = []
+        self.is_percentage_boundary = is_percentage_boundary
+        self.percentage_boundary = percentage_boundary
 
     def create_model(self):
         self.global_model = tf.keras.models.Sequential([
@@ -74,10 +76,10 @@ class Server:
             time.sleep(1)
 
         round_start_time = time.time()
-
-        while time.time() - round_start_time < self.get_timeout():
-            done_training = all(not t.is_alive() for _, t in threads)
-            if done_training:
+        count_done_training = 0
+        while self.should_round_running(round_start_time, count_done_training):
+            count_done_training = sum(not t.is_alive() for _, t in threads)
+            if count_done_training == self.number_of_clients:
                 break
             time.sleep(0.5)  
 
@@ -92,6 +94,11 @@ class Server:
 
     def get_timeout(self):
         return self.timeout
+    
+    def should_round_running(self, round_start_time ,count_done_training):
+        if self.is_percentage_boundary:
+            return count_done_training/self.number_of_clients < self.percentage_boundary
+        return time.time() - round_start_time < self.get_timeout()
 
     def start_training(self):
         for round_num in range(self.number_of_rounds):
