@@ -40,7 +40,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
     training_data, testing_data = load_data()
     training_data_clients = split_data_random(training_data, number_of_clients)
 
-    clients = [Client(training_data_clients[i]) for i in range(number_of_clients)]
+    clients = [Client(training_data_clients[i], i+1) for i in range(number_of_clients)]
 
     server = Server(clients, number_of_clients, number_of_rounds, timeout, local_epochs, batch_size, testing_data)
 
@@ -52,7 +52,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
 if __name__ == "__main__":
     num_clients = 5
     round_num = 5
-    timeout = 3
+    timeout = 8
     epochs = 1
     batch_size = 32
 
