@@ -4,6 +4,8 @@ import tensorflow as tf
 import numpy as np
 from client import Client
 from server import Server
+import matplotlib.pyplot as plt
+import numpy as np
 
 def load_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -39,14 +41,28 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
 
     training_data, testing_data = load_data()
     training_data_clients = split_data_random(training_data, number_of_clients)
+    boundary_list = []
+    accuracy_history = []
+    for boundary in range(4,12,2):
+        boundary = boundary / 10
+        print(f'Percentual atual: {boundary * 100}%')
+        boundary_list.append(boundary)
+        clients = [Client(training_data_clients[i], i+1) for i in range(number_of_clients)]
 
-    clients = [Client(training_data_clients[i], i+1) for i in range(number_of_clients)]
+        server = Server(clients, number_of_clients, number_of_rounds, timeout, local_epochs, batch_size, testing_data, True, boundary)
 
-    server = Server(clients, number_of_clients, number_of_rounds, timeout, local_epochs, batch_size, testing_data, True, 0.8)
-
-    server.create_model()
-    server.setup_clients()
-    server.start_training()
+        server.create_model()
+        server.setup_clients()
+        local_history = server.start_training()
+        accuracy_history.append(local_history)
+    for i, boundary in enumerate(boundary_list):
+        accuracy_axis = [accuracy_history[i][j][1] for j in range(len(accuracy_history))]
+        time_axis = [accuracy_history[i][j][2] for j in range(len(accuracy_history))]
+        plt.plot(time_axis, accuracy_axis, label=boundary)
+    plt.xlabel('Tempo de treinamento')
+    plt.ylabel('Acurácia do modelo')
+    plt.legend()
+    plt.savefig('output/accuracy.png')
 
 
 if __name__ == "__main__":

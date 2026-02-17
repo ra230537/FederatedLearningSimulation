@@ -3,7 +3,6 @@
 import tensorflow as tf
 import threading
 import time
-import matplotlib.pyplot as plt
 
 class Server:
     def __init__(self, clients, num_clients, round_num, timeout, local_epochs, batch_size, testing_data, is_percentage_boundary, percentage_boundary):
@@ -108,14 +107,13 @@ class Server:
             self.aggregate_round(client_weights, client_sizes, round_num)
         print("Treinamento concluído. Novo modelo global gerado.")
         loss, accuracy,_ = self.evaluate()
-        accuracy_axis = [self.accuracy_history[i][1] for i in range(len(self.accuracy_history))]
-        time_axis = [self.accuracy_history[i][2] for i in range(len(self.accuracy_history))]
-        print(f"Dados historicos: {accuracy_axis}")
+
+        
+        # print(f"Dados historicos: {accuracy_axis}")
         print(f"Treinamento federado síncrono concluído.")
         print(f"Perda final do modelo global: {loss:.4f}")
         print(f"Acurácia final do modelo global: {accuracy:.4f}")
-        plt.plot(time_axis, accuracy_axis)
-        plt.savefig('output/accuracy.png')
+        return self.accuracy_history
             
 
 
