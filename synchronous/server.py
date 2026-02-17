@@ -81,7 +81,7 @@ class Server:
             count_done_training = sum(not t.is_alive() for _, t in threads)
             if count_done_training == self.number_of_clients:
                 break
-            time.sleep(0.5)  
+            time.sleep(0.001)  
 
         for client, thread in threads:
             if thread.is_alive():
