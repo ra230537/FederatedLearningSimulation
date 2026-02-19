@@ -43,8 +43,8 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
     training_data_clients = split_data_random(training_data, number_of_clients)
     boundary_list = []
     accuracy_history = []
-    for boundary in range(4,12,2):
-        boundary = boundary / 10
+    for boundary in range(25,100,25):
+        boundary = boundary / 100
         print(f'Percentual atual: {boundary * 100}%')
         boundary_list.append(boundary)
         clients = [Client(training_data_clients[i], i+1) for i in range(number_of_clients)]
@@ -66,8 +66,8 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
 
 
 if __name__ == "__main__":
-    num_clients = 5
-    round_num = 5
+    num_clients = 40
+    round_num = 80
     timeout = 8
     epochs = 1
     batch_size = 32

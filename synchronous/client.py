@@ -16,7 +16,7 @@ class Client:
     def train(self, local_epochs, batch_size):
         start_training_time = time.time()
         connection_delay = random.uniform(0.1, 5)
-        train_delay = random.uniform(0.1, 5)
+        train_delay = random.uniform(0.1, 90)
         total_delay = connection_delay + train_delay
         time.sleep(total_delay)
         self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)

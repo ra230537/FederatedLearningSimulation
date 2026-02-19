@@ -5,7 +5,7 @@ import threading
 import time
 
 class Server:
-    def __init__(self, clients, num_clients, round_num, timeout, local_epochs, batch_size, testing_data, is_percentage_boundary, percentage_boundary):
+    def __init__(self, clients, num_clients, round_num, timeout, local_epochs, batch_size, testing_data, is_percentage_boundary = False, percentage_boundary = 1):
         self.clients = clients
         self.number_of_clients = num_clients
         self.number_of_rounds = round_num
