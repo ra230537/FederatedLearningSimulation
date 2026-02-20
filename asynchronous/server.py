@@ -100,14 +100,9 @@ class Server:
         self.event.set()
 
         loss, accuracy, now = self.evaluate()
-        return self.accuracy_history
-        accuracy_axis = [self.accuracy_history[i][1] for i in range(len(self.accuracy_history))]
-        time_axis = [self.accuracy_history[i][2] for i in range(len(self.accuracy_history))]
-        print(f"Dados historicos: {accuracy_axis}")
         print(f"Treinamento federado assíncrono concluído.")
         print(f"Perda final do modelo global: {loss:.4f}")
         print(f"Acurácia final do modelo global: {accuracy:.4f}")
-        plt.plot(time_axis, accuracy_axis)
-        plt.savefig('output/accuracy.png')
+        return self.accuracy_history
 
 
