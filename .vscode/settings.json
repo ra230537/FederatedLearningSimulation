@@ -1,0 +1,8 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python.defaultInterpreterPath": "/home/julio/anaconda3/envs/flower/bin/python",
+    "python.analysis.extraPaths": [
+        "/home/julio/anaconda3/envs/flower/lib/python3.11/site-packages"
+    ]
+}
