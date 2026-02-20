@@ -3,6 +3,7 @@
 import tensorflow as tf
 import numpy as np
 from client import Client
+from scipy.stats import triang
 from server import Server
 
 def load_data():
@@ -50,10 +51,18 @@ def main(num_clients, num_updates, timeout, epochs, batch_size):
 
 
 if __name__ == "__main__":
+    min_time_value = 0.1
+    max_time_value = 5
+    min_value = min_time_value*2
+    max_value = max_time_value*2
+    moda = (min_time_value + max_time_value)/2+(min_time_value+max_time_value)/2
+    c = (moda - min_value)/(max_value - min_value)
+    timeout_sync = triang.ppf(0.50, c, loc=min_value, scale=max_value-min_value)
     num_clients = 5
     num_updates = 5
-    timeout = 20
+    print(f'timeout definido para 50%: {timeout_sync}')
+    # timeout = 20
     epochs = 1
     batch_size = 32
 
-    main(num_clients, num_updates, timeout, epochs, batch_size)
+    main(num_clients, num_updates, timeout_sync, epochs, batch_size)
