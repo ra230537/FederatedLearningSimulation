@@ -56,9 +56,10 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
         local_history = server.start_training()
         accuracy_history.append(local_history)
     for i, boundary in enumerate(boundary_list):
-        accuracy_axis = [accuracy_history[i][j][1] for j in range(len(accuracy_history))]
-        time_axis = [accuracy_history[i][j][2] for j in range(len(accuracy_history))]
-        plt.plot(time_axis, accuracy_axis, label=boundary)
+        points = sorted(accuracy_history[i], key=lambda x: x[2])
+        accuracy_axis = [p[1] for p in points]
+        time_axis = [p[2] for p in points]
+        plt.plot(time_axis, accuracy_axis, label=f'{boundary * 100}%')
     plt.xlabel('Tempo de treinamento')
     plt.ylabel('Acurácia do modelo')
     plt.legend()

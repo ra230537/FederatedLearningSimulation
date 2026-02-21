@@ -16,7 +16,7 @@ class Server:
         self.global_model = None
         self.testing_data = testing_data
         self.accuracy_history = []
-        self.start_time = time.time()
+        self.start_time = 0
         self.version = 0
         self.BASE_ALPHA = 0.8
         self.DECAY_OF_BASE_ALPHA = 0.999
@@ -76,7 +76,7 @@ class Server:
         return self.BASE_ALPHA*(self.DECAY_OF_BASE_ALPHA**staleness)*(1/(1+self.TARDINESS_SENSITIVITY*delay))
 
     def start_training(self):
-
+        self.start_time = time.time()
         threads = []
         for client in self.clients:
             thread = threading.Thread(
