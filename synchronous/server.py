@@ -54,9 +54,9 @@ class Server:
             ])
             for weight_idx in range(len(client_weights[0]))
         ]
+        self.global_model.set_weights(weighted_weights)
         loss, accuracy, time_stamp = self.evaluate()
         self.accuracy_history.append((loss, accuracy, time_stamp))
-        self.global_model.set_weights(weighted_weights)
 
     def evaluate(self):
         self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])

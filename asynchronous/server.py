@@ -64,10 +64,10 @@ class Server:
         with self.lock:
             global_weights = self.global_model.get_weights()
             self.update_global_weights(global_weights, updated_weights, client_version)
-            
+            self.global_model.set_weights(global_weights)
+
             loss, accuracy, time_stamp = self.evaluate()
             self.accuracy_history.append((loss, accuracy, time_stamp))
-            self.global_model.set_weights(global_weights)
 
             # Atualizar versão do servidor
             self.version += 1
