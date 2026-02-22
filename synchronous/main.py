@@ -8,6 +8,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 from constants import *
+import random as rn
+
+np.random.seed(42)
+rn.seed(42)
+tf.random.set_seed(42)
 
 def load_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
