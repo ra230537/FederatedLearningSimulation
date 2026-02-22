@@ -6,6 +6,7 @@ from client import Client
 from server import Server
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 from constants import *
 
 def load_data():
@@ -56,6 +57,13 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
         server.setup_clients()
         local_history = server.start_training()
         accuracy_history.append(local_history)
+    # Salvar dados em arquivo JSON para gerar gráficos depois
+    data = {}
+    for i, boundary in enumerate(boundary_list):
+        data[str(boundary * 100)] = [{'loss': p[0], 'accuracy': p[1], 'time': p[2]} for p in accuracy_history[i]]
+    with open('output/accuracy_data.json', 'w') as f:
+        json.dump(data, f, indent=2)
+    print('Dados salvos em output/accuracy_data.json')
     for i, boundary in enumerate(boundary_list):
         points = sorted(accuracy_history[i], key=lambda x: x[2])
         accuracy_axis = [p[1] for p in points]

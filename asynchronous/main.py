@@ -6,6 +6,7 @@ from client import Client
 from scipy.stats import uniform
 from server import Server
 import matplotlib.pyplot as plt
+import json
 from constants import *
 
 def load_data():
@@ -66,9 +67,13 @@ def main(num_clients, num_updates, epochs, batch_size):
         server.setup_clients()
         local_history = server.start_training()
         accuracy_history.append(local_history)
-    print(f'Quantidade de pontos na primeira execução: {len(accuracy_history[0])}')
-    print(f'Quantidade de pontos na segunda execução: {len(accuracy_history[1])}')
-    print(f'Quantidade de pontos na terceira execução: {len(accuracy_history[2])}')
+    # Salvar dados em arquivo JSON para gerar gráficos depois
+    data = {}
+    for i, percentile in enumerate(percentile_list):
+        data[str(percentile)] = [{'loss': p[0], 'accuracy': p[1], 'time': p[2]} for p in accuracy_history[i]]
+    with open('output/accuracy_data.json', 'w') as f:
+        json.dump(data, f, indent=2)
+    print('Dados salvos em output/accuracy_data.json')
     for i, percentile in enumerate(percentile_list):
         points = sorted(accuracy_history[i], key=lambda x: x[2])
         accuracy_axis = [p[1] for p in points]
