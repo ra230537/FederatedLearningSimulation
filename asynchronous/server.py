@@ -63,7 +63,7 @@ class Server:
         # Evitar concorrência nas operações
         with self.lock:
             global_weights = self.global_model.get_weights()
-            self.update_global_weights(global_weights, updated_weights, client_version, start_training_time)
+            self.update_global_weights(global_weights, updated_weights, client_version)
             
             loss, accuracy, time_stamp = self.evaluate()
             self.accuracy_history.append((loss, accuracy, time_stamp))
@@ -78,15 +78,14 @@ class Server:
         now = time.time()
         return loss, accuracy, now - self.start_time
 
-    def update_global_weights(self, global_weights, updated_weights, client_version, start_training_time):
-        delay = time.time() - start_training_time
+    def update_global_weights(self, global_weights, updated_weights, client_version):
         staleness = self.version - client_version
-        agg_factor = self.get_aggregation_factor(staleness, delay)
+        agg_factor = self.get_aggregation_factor(staleness)
         for i in range(len(global_weights)):
             global_weights[i] = global_weights[i]*(1-agg_factor) + agg_factor*updated_weights[i]
 
-    def get_aggregation_factor(self, staleness, delay):
-        return self.base_alpha*(self.decay_of_base_alpha**staleness)*(1/(1+self.tardiness_sensitivity*delay))
+    def get_aggregation_factor(self, staleness):
+        return self.base_alpha*(self.decay_of_base_alpha**self.version)*(1/(1+self.tardiness_sensitivity*staleness))
 
     def start_training(self):
         self.start_time = time.time()
