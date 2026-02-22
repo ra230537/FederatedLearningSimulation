@@ -9,7 +9,7 @@ class Server:
         self.clients = clients
         self.number_of_clients = num_clients
         self.number_of_rounds = round_num
-        self.start_time = time.time()
+        self.start_time = 0
         self.timeout = timeout
         self.local_epochs = local_epochs
         self.batch_size = batch_size
@@ -100,6 +100,7 @@ class Server:
         return time.time() - round_start_time < self.get_timeout()
 
     def start_training(self):
+        self.start_time = time.time()
         for round_num in range(self.number_of_rounds):
             print(f"\nRodada {round_num + 1}")
             self.distribute_weights()

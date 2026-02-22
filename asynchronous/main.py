@@ -6,6 +6,7 @@ from client import Client
 from scipy.stats import uniform
 from server import Server
 import matplotlib.pyplot as plt
+from constants import *
 
 def load_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -32,8 +33,8 @@ def split_data_random(train_data, num_clients):
     return split_datasets
 
 def get_percentiles_timeout(percentile_list, num_updates):
-    connection_dist = uniform(loc=0.1, scale=5)
-    train_dist = uniform(loc=0.1, scale=5)
+    connection_dist = uniform(loc=MIN_CONNECTION_TIME, scale=MAX_CONNECTION_TIME-MIN_CONNECTION_TIME)
+    train_dist = uniform(loc=MIN_TRAIN_TIME, scale=MAX_TRAIN_TIME-MIN_TRAIN_TIME)
     connection_samples = connection_dist.rvs(1_000_000)
     train_samples = train_dist.rvs(1_000_000)
     sum_samples = connection_samples+train_samples
@@ -44,7 +45,7 @@ def get_percentiles_timeout(percentile_list, num_updates):
 
 def main(num_clients, num_updates, epochs, batch_size):
     accuracy_history = []
-    percentile_list = [25, 50, 75]
+    percentile_list = PERCENTILE_LIST
     number_of_clients = num_clients
     number_of_updates = num_updates
     local_epochs = epochs
@@ -81,13 +82,11 @@ def main(num_clients, num_updates, epochs, batch_size):
 
 
 if __name__ == "__main__":
-
-    
     # print(percentile_samples)
-    num_clients = 5
-    num_updates = 5
+    num_clients = NUM_CLIENTS
+    num_updates = NUM_UPDATES
     # timeout = 20
-    epochs = 1
-    batch_size = 32
+    epochs = LOCAL_EPOCHS
+    batch_size = BATCH_SIZE
 
     main(num_clients, num_updates, epochs, batch_size)

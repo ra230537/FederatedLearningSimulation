@@ -4,6 +4,7 @@ import tensorflow as tf
 import threading
 import time
 import matplotlib.pyplot as plt
+from constants import *
 
 class Server:
     def __init__(self, clients, num_clients, num_updates, timeout, local_epochs, batch_size, testing_data):
@@ -18,9 +19,9 @@ class Server:
         self.accuracy_history = []
         self.start_time = 0
         self.version = 0
-        self.BASE_ALPHA = 0.8
-        self.DECAY_OF_BASE_ALPHA = 0.999
-        self.TARDINESS_SENSITIVITY = 0.075
+        self.base_alpha = BASE_ALPHA
+        self.decay_of_base_alpha = DECAY_OF_BASE_ALPHA
+        self.tardiness_sensitivity = TARDINESS_SENSITIVITY
 
         self.lock = threading.Lock()
         self.event = threading.Event()
@@ -73,7 +74,7 @@ class Server:
             global_weights[i] = global_weights[i]*(1-agg_factor) + agg_factor*updated_weights[i]
 
     def get_aggregation_factor(self, staleness, delay):
-        return self.BASE_ALPHA*(self.DECAY_OF_BASE_ALPHA**staleness)*(1/(1+self.TARDINESS_SENSITIVITY*delay))
+        return self.base_alpha*(self.decay_of_base_alpha**staleness)*(1/(1+self.tardiness_sensitivity*delay))
 
     def start_training(self):
         self.start_time = time.time()

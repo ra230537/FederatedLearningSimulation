@@ -6,6 +6,7 @@ from client import Client
 from server import Server
 import matplotlib.pyplot as plt
 import numpy as np
+from constants import *
 
 def load_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -43,7 +44,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
     training_data_clients = split_data_random(training_data, number_of_clients)
     boundary_list = []
     accuracy_history = []
-    for boundary in range(25,100,25):
+    for boundary in PERCENTILE_LIST:
         boundary = boundary / 100
         print(f'Percentual atual: {boundary * 100}%')
         boundary_list.append(boundary)
@@ -67,10 +68,10 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
 
 
 if __name__ == "__main__":
-    num_clients = 40
-    round_num = 80
-    timeout = 8
-    epochs = 1
-    batch_size = 32
+    num_clients = NUM_CLIENTS
+    round_num = NUM_UPDATES
+    timeout = TIMEOUT
+    epochs = LOCAL_EPOCHS
+    batch_size = BATCH_SIZE
 
     main(num_clients, round_num, timeout, epochs, batch_size)

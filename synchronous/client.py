@@ -2,6 +2,7 @@
 import time
 import tensorflow as tf
 import random
+from constants import *
 
 class Client:
     def __init__(self, dataset, client_id):
@@ -15,8 +16,8 @@ class Client:
 
     def train(self, local_epochs, batch_size):
         start_training_time = time.time()
-        connection_delay = random.uniform(0.1, 5)
-        train_delay = random.uniform(0.1, 90)
+        connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
+        train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
         total_delay = connection_delay + train_delay
         time.sleep(total_delay)
         self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
