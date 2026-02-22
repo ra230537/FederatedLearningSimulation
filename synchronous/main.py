@@ -71,6 +71,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
         plt.plot(time_axis, accuracy_axis, label=f'{boundary * 100}%')
     plt.xlabel('Tempo de treinamento')
     plt.ylabel('Acurácia do modelo')
+    plt.ylim(0.9, 1)
     plt.legend()
     plt.savefig('output/accuracy.png')
 
