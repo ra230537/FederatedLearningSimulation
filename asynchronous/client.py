@@ -1,8 +1,9 @@
 #Client.py
 import time
 import tensorflow as tf
-import random
+import random as rn
 from constants import *
+rn.seed(42)
 
 class Client:
     def __init__(self, dataset, client_id):

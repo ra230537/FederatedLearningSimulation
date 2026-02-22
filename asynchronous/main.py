@@ -8,10 +8,8 @@ from server import Server
 import matplotlib.pyplot as plt
 import json
 from constants import *
-import random as rn
 
 np.random.seed(42)
-rn.seed(42)
 tf.random.set_seed(42)
 
 

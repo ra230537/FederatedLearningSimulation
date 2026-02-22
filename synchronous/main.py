@@ -8,10 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 from constants import *
-import random as rn
 
 np.random.seed(42)
-rn.seed(42)
 tf.random.set_seed(42)
 
 def load_data():
