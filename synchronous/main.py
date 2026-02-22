@@ -5,9 +5,10 @@ import numpy as np
 from client import Client
 from server import Server
 import matplotlib.pyplot as plt
-import numpy as np
 import json
 from constants import *
+import math
+import argparse
 
 np.random.seed(42)
 tf.random.set_seed(42)
@@ -36,8 +37,75 @@ def split_data_random(train_data, num_clients):
 
     return split_datasets
 
-def main(num_clients, round_num, timeout, epochs, batch_size):
+'''
+@train_data: Dados de treinamento
+@num_clients: quantidade de clientes
+'''
+def split_non_iid_data(train_data, num_clients):
+    x = []
+    y = []
+    for i, j in train_data:
+        x.append(i.numpy())
+        y.append(j.numpy())
+    x = np.array(x)
+    y = np.array(y)
+    # Um mapeamento que indica o percentual que cada cliente possui de dados da classe (soma 100% para cada classe)
+    # {class: [0.1,0.02,...]}
+    classes_by_clients_percentage = {}
+    # Um mapeamento que indica os indices que essa classe apareceu
+    # {class: [1, 3, 5, 7}
+    class_rows_mapping = {}
+    # Indica quantos dados cada cliente vai ter.
+    clients_number_by_classes = {}
+    for _class in range(10):
+        classes_by_clients_percentage[_class] = np.random.dirichlet(alpha=np.ones(num_clients), size=1)[0] 
+        class_rows_mapping[_class] = np.where(y == _class)[0]
+        np.random.shuffle(class_rows_mapping[_class])
+    # Agora eu preciso saber quantos dados cada classe tem
+    for _class in range(10):
+        for client_percentage in classes_by_clients_percentage[_class]:
+            if _class not in clients_number_by_classes:
+                clients_number_by_classes[_class] = []
+            class_size = len(class_rows_mapping[_class])
+            clients_number_by_classes[_class].append(client_percentage*class_size)
 
+    # {1: [x1, x2, x3, ...], 2: [x13, x25, x399, ...]}
+    samples_x_by_client = {i: [] for i in range(num_clients)}
+    samples_y_by_client = {i: [] for i in range(num_clients)}
+    for _class in range(10):
+        current_idx = 0
+        for client_idx in range(num_clients):
+            # Obtém quantos dados esse cliente vai precisar para essa classe
+            qty_samples = math.floor(clients_number_by_classes[_class][client_idx])
+            
+            # Caso seja o ultimo cliente ele vai pegar os ultimos dados
+            if (client_idx == num_clients - 1):
+                sample_list = class_rows_mapping[_class][current_idx:]
+            # Caso não seja o ultimo ele vai buscar exatamente os dados que falamos com base no mapeamento
+            else:
+                sample_list = class_rows_mapping[_class][current_idx:current_idx+qty_samples]
+
+            # Obtem os exemplares
+            x_samples = x[sample_list]
+            y_samples = y[sample_list]
+
+            # Cria vários arrays de dado por cliente, um para cada classe
+            # Cria [1:[x1, x4, x19, ...],[x3, x42, ...]]
+            samples_x_by_client[client_idx].append(x_samples)
+            samples_y_by_client[client_idx].append(y_samples)
+            # Atualiza o indice atual
+            current_idx+=qty_samples
+    
+    client_datasets = []
+    for client_idx in range(num_clients):
+        #Cria [[x1, x4, x19, x23, x42, ...]]
+        client_x = np.concatenate(samples_x_by_client[client_idx])
+        client_y = np.concatenate(samples_y_by_client[client_idx])
+        dataset = tf.data.Dataset.from_tensor_slices((client_x, client_y))
+        client_datasets.append(dataset)
+    return client_datasets
+
+def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid):
     number_of_clients = num_clients
     number_of_rounds = round_num
     timeout = timeout
@@ -45,7 +113,12 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
     batch_size = batch_size
 
     training_data, testing_data = load_data()
-    training_data_clients = split_data_random(training_data, number_of_clients)
+    if is_non_iid:
+        print("Usando dados não IID")
+        training_data_clients = split_non_iid_data(training_data, number_of_clients)
+    else:
+        print("Usando dados IID")
+        training_data_clients = split_data_random(training_data, number_of_clients)
     boundary_list = []
     accuracy_history = []
     for boundary in PERCENTILE_LIST:
@@ -64,9 +137,10 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
     data = {}
     for i, boundary in enumerate(boundary_list):
         data[str(boundary * 100)] = [{'loss': p[0], 'accuracy': p[1], 'time': p[2]} for p in accuracy_history[i]]
-    with open('output/accuracy_data.json', 'w') as f:
+    accuracy_data_name = 'accuracy_data_non_iid.json' if is_non_iid else 'accuracy_data_iid.json'
+    with open(f'output/{accuracy_data_name}', 'w') as f:
         json.dump(data, f, indent=2)
-    print('Dados salvos em output/accuracy_data.json')
+    print(f'Dados salvos em output/{accuracy_data_name}')
     for i, boundary in enumerate(boundary_list):
         points = sorted(accuracy_history[i], key=lambda x: x[2])
         accuracy_axis = [p[1] for p in points]
@@ -77,14 +151,20 @@ def main(num_clients, round_num, timeout, epochs, batch_size):
     plt.xlim(0, 1000)
     plt.ylim(0.9, 1)
     plt.legend()
-    plt.savefig('output/accuracy.png')
+    if is_non_iid:
+        plt.savefig('output/accuracy_non_iid.png')
+    else:
+        plt.savefig('output/accuracy_iid.png')
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--non-iid", action="store_true", help="Distribution of data")
+    args = parser.parse_args()
     num_clients = NUM_CLIENTS
     round_num = NUM_UPDATES
     timeout = TIMEOUT
     epochs = LOCAL_EPOCHS
     batch_size = BATCH_SIZE
 
-    main(num_clients, round_num, timeout, epochs, batch_size)
+    main(num_clients, round_num, timeout, epochs, batch_size, args.non_iid)
