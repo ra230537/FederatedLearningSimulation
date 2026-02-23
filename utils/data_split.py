@@ -36,9 +36,9 @@ def split_non_iid_data(train_data, num_clients):
     
     allowed_clients_by_classes = get_allowed_clients_by_classes(num_clients, max_classes)
     
-    class_rows_mapping, clients_number_by_classes = calculate_sample_allocations(allowed_clients_by_classes, y, num_clients)
+    sample_idx_by_classes, clients_size_by_classes = calculate_sample_allocations(allowed_clients_by_classes, y, num_clients)
 
-    samples_x_by_client, samples_y_by_client = get_samples_by_clients(clients_number_by_classes, class_rows_mapping, num_clients, x, y)
+    samples_x_by_client, samples_y_by_client = get_samples_by_clients(clients_size_by_classes, sample_idx_by_classes, num_clients, x, y)
     
     client_datasets = []
     for client_idx in range(num_clients):
@@ -69,30 +69,33 @@ def get_allowed_clients_by_classes(num_clients, max_classes):
 
 def calculate_sample_allocations(allowed_clients_by_classes, y, num_clients):
     # Um mapeamento que indica o percentual que cada cliente possui de dados da classe (soma 100% para cada classe)
-    # {class: [0.1,0.02,...]}
+    # {class: [0.1,0.02,...]}, inicia como 0 porque ainda não sabemos a porcentagem, depois vamos preencher com base na distribuição de Dirichlet
     classes_by_clients_percentage = {i: np.zeros(num_clients) for i in range(10)}
     # Um mapeamento que indica os indices que essa classe apareceu
     # {class: [1, 3, 5, 7}
-    class_rows_mapping = {}
+    sample_idx_by_classes = {}
     # Indica quantos dados cada cliente vai ter.
-    clients_number_by_classes = {}
+    clients_size_by_classes = {}
     for _class in range(10):
         valid_clients = allowed_clients_by_classes[_class]
+        # Fala quanto cada cliente que conhece essa classe vai ter da mesma.
         dirichlet_result = np.random.dirichlet(alpha=np.ones(len(valid_clients)), size=1)[0]  # tamanho: valid_clients [0.2, 0.3, ...]
+        # Algo importante: Não quer dizer que o cliente da posição 1 teria os dados do dirichlet result da posição 1.
+        # Porém é facil de implementar sendo dessa forma e é tão equivalente quanto qualquer outra forma de organizar a distribuição dos dados
         for idx, client_idx in enumerate(valid_clients):
             classes_by_clients_percentage[_class][client_idx] = dirichlet_result[idx]
-        class_rows_mapping[_class] = np.where(y == _class)[0]
-        np.random.shuffle(class_rows_mapping[_class])
+        sample_idx_by_classes[_class] = np.where(y == _class)[0]
+        np.random.shuffle(sample_idx_by_classes[_class])
     # Agora eu preciso saber quantos dados cada classe tem
     for _class in range(10):
         for client_percentage in classes_by_clients_percentage[_class]:
-            if _class not in clients_number_by_classes:
-                clients_number_by_classes[_class] = []
-            class_size = len(class_rows_mapping[_class])
-            clients_number_by_classes[_class].append(client_percentage*class_size)
-    return class_rows_mapping, clients_number_by_classes
+            if _class not in clients_size_by_classes:
+                clients_size_by_classes[_class] = []
+            class_size = len(sample_idx_by_classes[_class])
+            clients_size_by_classes[_class].append(client_percentage*class_size)
+    return sample_idx_by_classes, clients_size_by_classes
 
-def get_samples_by_clients(clients_number_by_classes, class_rows_mapping, num_clients, x, y):
+def get_samples_by_clients(clients_size_by_classes, sample_idx_by_classes, num_clients, x, y):
     # {1: [x1, x2, x3, ...], 2: [x13, x25, x399, ...]}
     samples_x_by_client = {i: [] for i in range(num_clients)}
     samples_y_by_client = {i: [] for i in range(num_clients)}
@@ -100,14 +103,14 @@ def get_samples_by_clients(clients_number_by_classes, class_rows_mapping, num_cl
         current_idx = 0
         for client_idx in range(num_clients):
             # Obtém quantos dados esse cliente vai precisar para essa classe
-            qty_samples = math.floor(clients_number_by_classes[_class][client_idx])
+            qty_samples = math.floor(clients_size_by_classes[_class][client_idx])
             
             # Caso seja o ultimo cliente ele vai pegar os ultimos dados
             if (client_idx == num_clients - 1):
-                sample_list = class_rows_mapping[_class][current_idx:]
+                sample_list = sample_idx_by_classes[_class][current_idx:]
             # Caso não seja o ultimo ele vai buscar exatamente os dados que falamos com base no mapeamento
             else:
-                sample_list = class_rows_mapping[_class][current_idx:current_idx+qty_samples]
+                sample_list = sample_idx_by_classes[_class][current_idx:current_idx+qty_samples]
 
             # Obtem os exemplares
             x_samples = x[sample_list]
