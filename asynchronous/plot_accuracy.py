@@ -8,7 +8,7 @@ import argparse
 
 def plot_from_json(is_non_iid):
     accuracy_data_name = 'accuracy_data_non_iid.json' if is_non_iid else 'accuracy_data_iid.json'
-    with open(f'output/{accuracy_data_name}', 'r') as f:
+    with open(f'output-cifar-10/{accuracy_data_name}', 'r') as f:
         data = json.load(f)
 
     all_accuracies = []
@@ -21,18 +21,11 @@ def plot_from_json(is_non_iid):
 
     plt.xlabel('Número de atualizações (updates)')
     plt.ylabel('Acurácia do modelo')
-    # plt.xlim(0, 1000)
-    if is_non_iid:
-        min_acc = max(0, min(all_accuracies) - 0.05)
-        max_acc = min(1, max(all_accuracies) + 0.05)
-        plt.ylim(min_acc, max_acc)
-    else:
-        plt.ylim(0.9, 1)
     plt.legend()
 
     output_name = 'accuracy_non_iid.png' if is_non_iid else 'accuracy_iid.png'
-    plt.savefig(f'output/{output_name}')
-    print(f'Gráfico salvo em output/{output_name}')
+    plt.savefig(f'output-cifar-10/{output_name}')
+    print(f'Gráfico salvo em output-cifar-10/{output_name}')
     plt.show()
 
 
