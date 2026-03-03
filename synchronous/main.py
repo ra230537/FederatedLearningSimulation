@@ -8,8 +8,8 @@ import tensorflow as tf
 import numpy as np
 from client import Client
 from server import Server
-import matplotlib.pyplot as plt
 import json
+import plot_accuracy
 from constants import *
 import argparse
 from utils.data_split import split_non_iid_data, split_iid_data
@@ -61,27 +61,11 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid):
     with open(f'output-cifar-10/{accuracy_data_name}', 'w') as f:
         json.dump(data, f, indent=2)
     print(f'Dados salvos em output-cifar-10/{accuracy_data_name}')
-    all_accuracies = []
-    for i, boundary in enumerate(boundary_list):
-        points = sorted(accuracy_history[i], key=lambda x: x[2])
-        accuracy_axis = [p[1] for p in points]
-        time_axis = [p[2] for p in points]
-        all_accuracies.extend(accuracy_axis)
-        plt.plot(time_axis, accuracy_axis, label=f'{boundary * 100}%')
-    plt.xlabel('Tempo de treinamento')
-    plt.ylabel('Acurácia do modelo')
-    plt.xlim(0, 1000)
-    if is_non_iid:
-        min_acc = max(0, min(all_accuracies) - 0.05)
-        max_acc = min(1, max(all_accuracies) + 0.05)
-        plt.ylim(min_acc, max_acc)
-    else:
-        plt.ylim(0.9, 1)
-    plt.legend()
-    if is_non_iid:
-        plt.savefig('output-cifar-10/accuracy_non_iid.png')
-    else:
-        plt.savefig('output-cifar-10/accuracy_iid.png')
+
+    plot_data = plot_accuracy.load_data(is_non_iid)
+    plot_accuracy.plot_smoothed_overlay(plot_data, window=50, is_non_iid=is_non_iid)
+    plot_accuracy.plot_individual_bands(plot_data, window=50, is_non_iid=is_non_iid)
+    plot_accuracy.plot_boxplot_by_range(plot_data, is_non_iid=is_non_iid, n_bins=8)
 
 
 if __name__ == "__main__":
