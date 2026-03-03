@@ -45,6 +45,11 @@ def split_non_iid_data(train_data, num_clients):
         #Cria [[x1, x4, x19, x23, x42, ...]]
         client_x = np.concatenate(samples_x_by_client[client_idx])
         client_y = np.concatenate(samples_y_by_client[client_idx])
+        # Embaralha os dados para evitar que fiquem ordenados por classe,
+        # o que causaria catastrophic forgetting durante o treinamento
+        shuffle_idx = np.random.permutation(len(client_x))
+        client_x = client_x[shuffle_idx]
+        client_y = client_y[shuffle_idx]
         dataset = tf.data.Dataset.from_tensor_slices((client_x, client_y))
         client_datasets.append(dataset)
     return client_datasets

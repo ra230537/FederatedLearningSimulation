@@ -20,9 +20,9 @@ tf.random.set_seed(42)
 
 
 def load_data():
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
-    x_train = x_train.reshape(-1, 28, 28, 1).astype("float32") / 255.0
-    x_test = x_test.reshape(-1, 28, 28, 1).astype("float32") / 255.0
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+    x_train = x_train.astype("float32") / 255.0
+    x_test = x_test.astype("float32") / 255.0
     train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
     test_data = tf.data.Dataset.from_tensor_slices((x_test, y_test))
     return train_data, test_data
@@ -72,23 +72,30 @@ def main(num_clients, num_updates, epochs, batch_size, is_non_iid):
         data[str(percentile)] = [{'loss': p[0], 'accuracy': p[1], 'time': p[2]} for p in accuracy_history[i]]
 
     accuracy_data_name = 'accuracy_data_non_iid.json' if is_non_iid else 'accuracy_data_iid.json'
-    with open(f'output/{accuracy_data_name}', 'w') as f:
+    with open(f'output-cifar-10/{accuracy_data_name}', 'w') as f:
         json.dump(data, f, indent=2)
-    print(f'Dados salvos em output/{accuracy_data_name}')
+    print(f'Dados salvos em output-cifar-10/{accuracy_data_name}')
+    all_accuracies = []
     for i, percentile in enumerate(percentile_list):
         points = sorted(accuracy_history[i], key=lambda x: x[2])
         accuracy_axis = [p[1] for p in points]
         time_axis = [p[2] for p in points]
+        all_accuracies.extend(accuracy_axis)
         plt.plot(time_axis, accuracy_axis, label=f'{percentile}%')
     plt.xlabel('Tempo de treinamento')
     plt.ylabel('Acurácia do modelo')
     plt.xlim(0, 1000)
-    plt.ylim(0.9, 1)
+    if is_non_iid:
+        min_acc = max(0, min(all_accuracies) - 0.05)
+        max_acc = min(1, max(all_accuracies) + 0.05)
+        plt.ylim(min_acc, max_acc)
+    else:
+        plt.ylim(0.9, 1)
     plt.legend()
     if is_non_iid:
-        plt.savefig('output/accuracy_non_iid.png')
+        plt.savefig('output-cifar-10/accuracy_non_iid.png')
     else:
-        plt.savefig('output/accuracy_iid.png')
+        plt.savefig('output-cifar-10/accuracy_iid.png')
 
 
 
