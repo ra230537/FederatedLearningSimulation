@@ -69,14 +69,14 @@ def plot_smoothed_overlay(data, window, is_non_iid):
 
         color = colors.get(label, None)
         # Linha suavizada (destaque)
-        ax.plot(x_axis, smoothed, label=f'{label}% (média móvel, w={window})',
+        ax.plot(x_axis, smoothed, label=f'{label}% conexão (MM, w={window})',
                 linewidth=2, color=color)
         # Dados originais com transparência
         ax.plot(x_axis, acc, alpha=0.15, linewidth=0.5, color=color)
 
     ax.set_xlabel('Número de atualizações (updates)', fontsize=12)
     ax.set_ylabel('Acurácia do modelo', fontsize=12)
-    ax.set_title('Curvas suavizadas — comparação entre porcentagens de clientes', fontsize=13)
+    ax.set_title('Curvas suavizadas — comparação por percentual de conexão', fontsize=13)
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -109,13 +109,13 @@ def plot_individual_bands(data, window, is_non_iid):
         ax.fill_between(x_axis, lo, hi, alpha=0.2, color=color, label='Faixa min/max')
         ax.plot(x_axis, smoothed, linewidth=2, color=color, label=f'Média móvel (w={window})')
 
-        ax.set_title(f'{label}% dos clientes', fontsize=12)
+        ax.set_title(f'{label}% conexão', fontsize=12)
         ax.set_xlabel('Updates', fontsize=11)
         ax.legend(fontsize=9, loc='lower right')
         ax.grid(True, alpha=0.3)
 
     axes[0].set_ylabel('Acurácia do modelo', fontsize=12)
-    fig.suptitle('Acurácia por porcentagem de clientes — com banda de variação', fontsize=13, y=1.02)
+    fig.suptitle('Acurácia por percentual de conexão — com banda de variação', fontsize=13, y=1.02)
     fig.tight_layout()
 
     suffix = 'non_iid' if is_non_iid else 'iid'
@@ -159,7 +159,7 @@ def plot_boxplot_by_range(data, is_non_iid, n_bins=8):
             patch.set_facecolor(color)
             patch.set_alpha(0.5)
 
-        ax.set_title(f'{label}% dos clientes', fontsize=12)
+        ax.set_title(f'{label}% conexão', fontsize=12)
         ax.set_xlabel('Faixa de updates', fontsize=11)
         ax.tick_params(axis='x', rotation=45)
         ax.grid(True, alpha=0.3, axis='y')
