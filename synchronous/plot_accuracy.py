@@ -94,7 +94,7 @@ def plot_smoothed_overlay(data, window, is_non_iid):
     fig.tight_layout()
 
     suffix = 'non_iid' if is_non_iid else 'iid'
-    path = f'output-cifar-10/accuracy_smoothed_{suffix}.png'
+    path = f'output-cifar-10/accuracy_{suffix}.png'
     fig.savefig(path, dpi=150)
     print(f'Gráfico salvo: {path}')
     plt.close(fig)
