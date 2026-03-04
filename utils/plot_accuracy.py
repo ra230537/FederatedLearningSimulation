@@ -116,7 +116,7 @@ def plot_smoothed_overlay(data, output_dir, is_non_iid, alpha=0.1,
         ax.plot(x_axis, smoothed,
                 label=f'{display}% conexão (EMA, α={alpha})',
                 linewidth=2, color=color)
-        ax.plot(x_axis, acc, alpha=0.15, linewidth=0.5, color=color)
+        ax.plot(x_axis, acc, alpha=0.35, linewidth=0.5, color=color)
 
     ax.set_xlabel(x_label, fontsize=12)
     ax.set_ylabel('Acurácia do modelo', fontsize=12)
