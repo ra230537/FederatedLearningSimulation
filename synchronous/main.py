@@ -9,10 +9,10 @@ import numpy as np
 from client import Client
 from server import Server
 import json
-import plot_accuracy
 from constants import *
 import argparse
 from utils.data_split import split_non_iid_data, split_iid_data
+from utils.plot_accuracy import generate_all_plots
 np.random.seed(42)
 tf.random.set_seed(42)
 
@@ -62,10 +62,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid):
         json.dump(data, f, indent=2)
     print(f'Dados salvos em output-cifar-10/{accuracy_data_name}')
 
-    plot_data = plot_accuracy.load_data(is_non_iid)
-    plot_accuracy.plot_smoothed_overlay(plot_data, window=50, is_non_iid=is_non_iid)
-    plot_accuracy.plot_individual_bands(plot_data, window=50, is_non_iid=is_non_iid)
-    plot_accuracy.plot_boxplot_by_range(plot_data, is_non_iid=is_non_iid, n_bins=8)
+    generate_all_plots('output-cifar-10', is_non_iid, alpha=0.1, x_label='rodadas')
 
 
 if __name__ == "__main__":
