@@ -1,3 +1,15 @@
-asynchronous/__pycache__/*
-synchronous/__pycache__/*
+asynchronous/__pycache__/
+synchronous/__pycache__/
 report/*
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Outputs/artefatos de experimento
+asynchronous/output-cifar-10/
+synchronous/output-cifar-10/
+report/
+
+# (opcional) ambientes locais
+.venv/
+venv/
