@@ -19,11 +19,16 @@ class Client:
         start_training_time = time.time()
         connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
         train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
-        total_delay = connection_delay + train_delay
-        time.sleep(total_delay)
+        time.sleep(connection_delay)
+        fit_start = time.time()
         self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
+        fit_time = time.time() - fit_start
+        # Desconta o tempo real do fit do delay simulado, garantindo que o
+        # tempo total de processamento nao ultrapasse MAX_TRAIN_TIME
+        remaining_delay = max(0.0, train_delay - fit_time)
+        time.sleep(remaining_delay)
         end_training_time = time.time()
-        print(f"Tempo de Execução do cliente {self.client_id}: {end_training_time-start_training_time:.2f}s")
+        print(f"Tempo de Execução do cliente {self.client_id}: {end_training_time-start_training_time:.2f}s (Fit real: {fit_time:.2f}s)")
 
     def get_dataset_size(self):
         size = self.dataset.cardinality().numpy()

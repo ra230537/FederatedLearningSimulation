@@ -19,12 +19,18 @@ class Client:
         start_training_time = time.time()
         connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
         train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
-        total_delay = connection_delay + train_delay
-        time.sleep(total_delay)
+        time.sleep(connection_delay)
+        fit_start = time.time()
         self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
+        fit_time = time.time() - fit_start
+        # Desconta o tempo real do fit do delay simulado, garantindo que o
+        # tempo total de processamento nao ultrapasse MAX_TRAIN_TIME
+        remaining_delay = max(0.0, train_delay - fit_time)
+        time.sleep(remaining_delay)
         end_training_time = time.time()
         total_time = end_training_time - start_training_time
-        print(f"[Cliente {self.client_id}] Finalizado em {total_time:.2f}s (Delay: {total_delay:.2f}s)")
+        total_delay = connection_delay + train_delay
+        print(f"[Cliente {self.client_id}] Finalizado em {total_time:.2f}s (Delay simulado: {total_delay:.2f}s | Fit real: {fit_time:.2f}s)")
         return self.local_model.get_weights()
 
     def train_multiple(self, number_of_updates, local_epochs, batch_size, server):
