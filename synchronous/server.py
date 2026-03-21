@@ -5,6 +5,8 @@ import time
 
 import tensorflow as tf
 
+from utils.models import get_model
+
 
 class Server:
     def __init__(
@@ -16,8 +18,7 @@ class Server:
         local_epochs,
         batch_size,
         testing_data,
-        is_percentage_boundary=False,
-        percentage_boundary=1,
+        model_name,
     ):
         self.clients = clients
         self.number_of_clients = num_clients
@@ -26,32 +27,13 @@ class Server:
         self.timeout = timeout
         self.local_epochs = local_epochs
         self.batch_size = batch_size
-        self.global_model = None
+        self.global_model = get_model(model_name)
         self.testing_data = testing_data
         self.accuracy_history = []
-
-    def create_model(self):
-        self.global_model = tf.keras.models.Sequential(
-            [
-                tf.keras.layers.Conv2D(
-                    32,
-                    (3, 3),
-                    activation="relu",
-                    padding="same",
-                    input_shape=(32, 32, 3),  # pyright: ignore[reportCallIssue]
-                ),
-                tf.keras.layers.Conv2D(32, (3, 3), activation="relu", padding="same"),
-                tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-                tf.keras.layers.Dropout(0.25),
-                tf.keras.layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
-                tf.keras.layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
-                tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-                tf.keras.layers.Dropout(0.25),
-                tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(512, activation="relu"),
-                tf.keras.layers.Dropout(0.5),
-                tf.keras.layers.Dense(10, activation="softmax"),
-            ]
+        self.global_model.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
 
     def setup_clients(self):
@@ -73,19 +55,20 @@ class Server:
             )
             for weight_idx in range(len(client_weights[0]))
         ]
-        self.global_model.set_weights(weighted_weights)  # pyright: ignore[reportOptionalMemberAccess]
+        self.global_model.set_weights(weighted_weights)  # pyright: ignore[reportOptionalMemberAccess, reportArgumentType]
         loss, accuracy, time_stamp = self.evaluate()
         self.accuracy_history.append((loss, accuracy, time_stamp))
 
     def evaluate(self):
-        self.global_model.compile(  # pyright: ignore[reportOptionalMemberAccess]
-            optimizer="adam",
-            loss="sparse_categorical_crossentropy",
-            metrics=["accuracy"],
-        )
-        loss, accuracy = self.global_model.evaluate(  # pyright: ignore[reportOptionalMemberAccess]
+        result = self.global_model.evaluate(  # pyright: ignore[reportOptionalMemberAccess]
             self.testing_data.batch(self.batch_size), verbose=0
         )
+        if isinstance(result, (list, tuple)):
+            loss = float(result[0])
+            accuracy = float(result[1]) if len(result) > 1 else 0.0
+        else:
+            loss = float(result)
+            accuracy = 0.0
         now = time.time()
         return loss, accuracy, now - self.start_time
 

@@ -80,9 +80,9 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid):
             local_epochs,
             batch_size,
             testing_data,
+            "cnn",
         )
 
-        server.create_model()
         server.setup_clients()
         local_history = server.start_training()
         accuracy_history.append(local_history)

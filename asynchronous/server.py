@@ -1,20 +1,33 @@
-#Server.py
+# Server.py
 
-import tensorflow as tf
 import threading
 import time
-import matplotlib.pyplot as plt
-from constants import *
+
+import tensorflow as tf
+from constants import BASE_ALPHA, DECAY_OF_BASE_ALPHA, TARDINESS_SENSITIVITY
+
+from utils.models import get_model
+
 
 class Server:
-    def __init__(self, clients, num_clients, num_updates, timeout, local_epochs, batch_size, testing_data):
+    def __init__(
+        self,
+        clients,
+        num_clients,
+        num_updates,
+        timeout,
+        local_epochs,
+        batch_size,
+        testing_data,
+        model_name,
+    ):
         self.clients = clients
         self.number_of_clients = num_clients
         self.number_of_updates = num_updates
         self.timeout = timeout
         self.local_epochs = local_epochs
         self.batch_size = batch_size
-        self.global_model = None
+        self.global_model = get_model(model_name)
         self.testing_data = testing_data
         self.accuracy_history = []
         self.start_time = 0
@@ -25,25 +38,11 @@ class Server:
 
         self.lock = threading.Lock()
         self.event = threading.Event()
-
-    def create_model(self):
-        self.global_model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(32, 32, 3)),
-            tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-            tf.keras.layers.Dropout(0.25),
-
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-            tf.keras.layers.Dropout(0.25),
-
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dropout(0.5),
-            tf.keras.layers.Dense(10, activation='softmax')
-        ])
-        self.global_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        self.global_model.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
+        )
 
     def setup_clients(self):
         for client in self.clients:
@@ -51,7 +50,7 @@ class Server:
 
     def get_model_weights(self):
         return self.global_model.get_weights()
-    
+
     def aggregate_update(self, client, updated_params, round):
         # Garante que nós não vamos agregar nada depois do timeout
         if self.event.is_set():
@@ -73,8 +72,10 @@ class Server:
             self.version += 1
 
     def evaluate(self):
-        
-        loss, accuracy = self.global_model.evaluate(self.testing_data.batch(self.batch_size), verbose=0)
+
+        loss, accuracy = self.global_model.evaluate(  # pyright: ignore[reportGeneralTypeIssues]
+            self.testing_data.batch(self.batch_size), verbose=0
+        )
         now = time.time()
         return loss, accuracy, now - self.start_time
 
@@ -82,28 +83,33 @@ class Server:
         staleness = self.version - client_version
         agg_factor = self.get_aggregation_factor(staleness)
         for i in range(len(global_weights)):
-            global_weights[i] = global_weights[i]*(1-agg_factor) + agg_factor*updated_weights[i]
+            global_weights[i] = (
+                global_weights[i] * (1 - agg_factor) + agg_factor * updated_weights[i]
+            )
 
     def get_aggregation_factor(self, staleness):
-        return self.base_alpha*(self.decay_of_base_alpha**self.version)*(1/(1+self.tardiness_sensitivity*staleness))
+        return (
+            self.base_alpha
+            * (self.decay_of_base_alpha**self.version)
+            * (1 / (1 + self.tardiness_sensitivity * staleness))
+        )
 
     def start_training(self):
         self.start_time = time.time()
         threads = []
         for client in self.clients:
             thread = threading.Thread(
-                target= client.train_multiple,
-                args= (self.number_of_updates, self.local_epochs, self.batch_size, self)
+                target=client.train_multiple,
+                args=(self.number_of_updates, self.local_epochs, self.batch_size, self),
             )
             threads.append((client, thread))
             thread.start()
-
 
         while time.time() - self.start_time < self.timeout:
             done_training = all(not t.is_alive() for _, t in threads)
             if done_training:
                 break
-            time.sleep(0.5) 
+            time.sleep(0.5)
 
         for client, thread in threads:
             if thread.is_alive():
@@ -112,9 +118,7 @@ class Server:
         self.event.set()
 
         loss, accuracy, now = self.evaluate()
-        print(f"Treinamento federado assíncrono concluído.")
+        print("Treinamento federado assíncrono concluído.")
         print(f"Perda final do modelo global: {loss:.4f}")
         print(f"Acurácia final do modelo global: {accuracy:.4f}")
         return self.accuracy_history
-
-
