@@ -2,8 +2,12 @@
 import time
 import tensorflow as tf
 import random
+import threading
 from constants import *
 random.seed(42)
+
+# Lock global para impedir que múltiplas threads executem fit() simultaneamente no TF
+fit_lock = threading.Lock()
 
 class Client:
     def __init__(self, dataset, client_id):
@@ -20,9 +24,10 @@ class Client:
         connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
         train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
         time.sleep(connection_delay)
-        fit_start = time.time()
-        self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
-        fit_time = time.time() - fit_start
+        with fit_lock:
+            fit_start = time.time()
+            self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
+            fit_time = time.time() - fit_start
         # Desconta o tempo real do fit do delay simulado, garantindo que o
         # tempo total de processamento nao ultrapasse MAX_TRAIN_TIME
         remaining_delay = max(0.0, train_delay - fit_time)

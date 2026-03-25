@@ -3,6 +3,7 @@
 import os
 import sys
 
+sys.path.append(os.path.dirname(__file__))
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 
@@ -42,7 +43,17 @@ def load_data():
     return train_data, test_data
 
 
-def main(num_clients, num_updates, epochs, batch_size, is_non_iid):
+def main(
+    num_clients,
+    num_updates,
+    epochs,
+    batch_size,
+    is_non_iid,
+    base_alpha=0.8,
+    decay_of_base_alpha=0.999,
+    tardiness_sensivity=0.075,
+    output_prefix="",
+):
     accuracy_history = []
     percentile_list = PERCENTILE_LIST
     number_of_clients = num_clients
@@ -82,6 +93,9 @@ def main(num_clients, num_updates, epochs, batch_size, is_non_iid):
             batch_size,
             testing_data,
             "cnn",
+            base_alpha,
+            decay_of_base_alpha,
+            tardiness_sensivity,
         )
 
         server.setup_clients()
@@ -94,24 +108,43 @@ def main(num_clients, num_updates, epochs, batch_size, is_non_iid):
             {"loss": p[0], "accuracy": p[1], "time": p[2]} for p in accuracy_history[i]
         ]
 
-    accuracy_data_name = (
-        "accuracy_data_non_iid.json" if is_non_iid else "accuracy_data_iid.json"
-    )
+    tipo_dist = "non_iid" if is_non_iid else "iid"
+    prefix_str = f"_{output_prefix}" if output_prefix else ""
+    accuracy_data_name = f"accuracy_data_{tipo_dist}{prefix_str}.json"
+
+    os.makedirs("output-cifar-10", exist_ok=True)
     with open(f"output-cifar-10/{accuracy_data_name}", "w") as f:
         json.dump(data, f, indent=2)
     print(f"Dados salvos em output-cifar-10/{accuracy_data_name}")
 
-    generate_all_plots("output-cifar-10", is_non_iid, alpha=0.1, x_label="atualizações")
+    if not output_prefix:
+        generate_all_plots(
+            "output-cifar-10", is_non_iid, alpha=0.1, x_label="atualizações"
+        )
 
+    tf.keras.backend.clear_session()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--num-clients", type=int, default=NUM_CLIENTS)
+    parser.add_argument("--num-updates", type=int, default=NUM_UPDATES)
+    parser.add_argument("--epochs", type=int, default=LOCAL_EPOCHS)
+    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--non-iid", action="store_true", help="Distribution of data")
+    parser.add_argument("--base-alpha", type=float, default=0.8)
+    parser.add_argument("--decay-of-base-alpha", type=float, default=0.999)
+    parser.add_argument("--tardiness-sensivity", type=float, default=0.075)
+    parser.add_argument("--output-prefix", type=str, default="")
     args = parser.parse_args()
-    num_clients = NUM_CLIENTS
-    num_updates = NUM_UPDATES
-    # timeout = 20
-    epochs = LOCAL_EPOCHS
-    batch_size = BATCH_SIZE
 
-    main(num_clients, num_updates, epochs, batch_size, args.non_iid)
+    main(
+        num_clients=args.num_clients,
+        num_updates=args.num_updates,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        is_non_iid=args.non_iid,
+        base_alpha=args.base_alpha,
+        decay_of_base_alpha=args.decay_of_base_alpha,
+        tardiness_sensivity=args.tardiness_sensivity,
+        output_prefix=args.output_prefix
+    )

@@ -3,6 +3,7 @@
 import os
 import sys
 
+sys.path.append(os.path.dirname(__file__))
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import argparse
@@ -42,7 +43,7 @@ def load_data():
     return train_data, test_data
 
 
-def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid):
+def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output_prefix=""):
     accuracy_history = []
     number_of_clients = num_clients
     percentile_list = PERCENTILE_LIST
@@ -92,14 +93,19 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid):
         data[str(percentile)] = [
             {"loss": p[0], "accuracy": p[1], "time": p[2]} for p in accuracy_history[i]
         ]
-    accuracy_data_name = (
-        "accuracy_data_non_iid.json" if is_non_iid else "accuracy_data_iid.json"
-    )
+    tipo_dist = "non_iid" if is_non_iid else "iid"
+    prefix_str = f"_{output_prefix}" if output_prefix else ""
+    accuracy_data_name = f"accuracy_data_{tipo_dist}{prefix_str}.json"
+    
+    os.makedirs("output-cifar-10", exist_ok=True)
     with open(f"output-cifar-10/{accuracy_data_name}", "w") as f:
         json.dump(data, f, indent=2)
     print(f"Dados salvos em output-cifar-10/{accuracy_data_name}")
 
-    generate_all_plots("output-cifar-10", is_non_iid, alpha=0.1, x_label="rodadas")
+    if not output_prefix:
+        generate_all_plots("output-cifar-10", is_non_iid, alpha=0.1, x_label="rodadas")
+        
+    tf.keras.backend.clear_session()
 
 
 if __name__ == "__main__":

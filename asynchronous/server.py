@@ -3,9 +3,6 @@
 import threading
 import time
 
-import tensorflow as tf
-from constants import BASE_ALPHA, DECAY_OF_BASE_ALPHA, TARDINESS_SENSITIVITY
-
 from utils.models import get_model
 
 
@@ -20,6 +17,9 @@ class Server:
         batch_size,
         testing_data,
         model_name,
+        base_alpha,
+        decay_of_base_alpha,
+        tardiness_sensivity,
     ):
         self.clients = clients
         self.number_of_clients = num_clients
@@ -32,9 +32,9 @@ class Server:
         self.accuracy_history = []
         self.start_time = 0
         self.version = 0
-        self.base_alpha = BASE_ALPHA
-        self.decay_of_base_alpha = DECAY_OF_BASE_ALPHA
-        self.tardiness_sensitivity = TARDINESS_SENSITIVITY
+        self.base_alpha = base_alpha
+        self.decay_of_base_alpha = decay_of_base_alpha
+        self.tardiness_sensitivity = tardiness_sensivity
 
         self.lock = threading.Lock()
         self.event = threading.Event()
@@ -49,7 +49,8 @@ class Server:
             client.setup_client(self.global_model)
 
     def get_model_weights(self):
-        return self.global_model.get_weights()
+        with self.lock:
+            return self.global_model.get_weights()
 
     def aggregate_update(self, client, updated_params, round):
         # Garante que nós não vamos agregar nada depois do timeout
@@ -116,6 +117,10 @@ class Server:
                 print(f"Cliente {client.client_id} excedeu o tempo limite.")
         # Make the flag true and we put a condition to stop the training if it is true.
         self.event.set()
+
+        print("Aguardando finalização das threads dos clientes do último alerta de timeout...")
+        for _, thread in threads:
+            thread.join()
 
         loss, accuracy, now = self.evaluate()
         print("Treinamento federado assíncrono concluído.")
