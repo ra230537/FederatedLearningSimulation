@@ -43,10 +43,10 @@ def load_data():
     return train_data, test_data
 
 
-def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output_prefix=""):
+def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output_prefix="", single_percentile=None):
     accuracy_history = []
     number_of_clients = num_clients
-    percentile_list = PERCENTILE_LIST
+    percentile_list = [single_percentile] if single_percentile else PERCENTILE_LIST
     timeout = timeout
     local_epochs = epochs
     batch_size = batch_size
@@ -111,6 +111,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--non-iid", action="store_true", help="Distribution of data")
+    parser.add_argument("--percentile", type=int, default=None, help="Percentil unico (ex: 50). Padrao: todos de PERCENTILE_LIST")
     args = parser.parse_args()
     num_clients = NUM_CLIENTS
     round_num = NUM_UPDATES
@@ -118,4 +119,4 @@ if __name__ == "__main__":
     epochs = LOCAL_EPOCHS
     batch_size = BATCH_SIZE
 
-    main(num_clients, round_num, timeout, epochs, batch_size, args.non_iid)
+    main(num_clients, round_num, timeout, epochs, batch_size, args.non_iid, single_percentile=args.percentile)

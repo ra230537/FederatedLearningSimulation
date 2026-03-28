@@ -1,94 +1,104 @@
-import itertools
+import argparse
 import os
 import subprocess
 
-# from synchronous.main import main as sync_main
-# from asynchronous.main import main as async_main
 
 def run_simulation(cmd):
-    # Converte o comando para string para o print original do terminal
     cmd_str = " ".join(cmd)
-    
-    # Executa o comando e redireciona a saída do processo filho direto pro terminal em tempo real
-    print(f"\n[INICIANDO PROCESSO] {cmd_str}")
-    
+    print(f"\n[INICIANDO] {cmd_str}")
     try:
-        resultado = subprocess.run(cmd, check=True)
-        print(f"\n[SUCESSO] Processo finalizado: {cmd_str}")
+        subprocess.run(cmd, check=True)
+        print(f"[SUCESSO] {cmd_str}")
     except subprocess.CalledProcessError as e:
-        print(f"\n[ERRO] Processo falhou com código {e.returncode}: {cmd_str}")
+        print(f"[ERRO] Código {e.returncode}: {cmd_str}")
 
 
 def run_ablation():
-    print("== Iniciando Estudo de Ablação==\n")
+    parser = argparse.ArgumentParser(description="Estudo de ablação - variação isolada de parâmetros")
+    parser.add_argument("--num-updates", type=int, default=40, help="Número de atualizações (default: 40)")
+    parser.add_argument("--percentile", type=int, default=50, help="Percentil único para o ablation (default: 50)")
+    parser.add_argument("--num-clients", type=int, default=40, help="Número de clientes (default: 40)")
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--batch-size", type=int, default=32)
+    args = parser.parse_args()
+
+    print("== Estudo de Ablação (variação isolada) ==\n")
     os.makedirs("output-cifar-10", exist_ok=True)
 
-    # Parâmetros:
-    NUM_CLIENTS = 40
-    ROUNDS_OR_UPDATES = (
-        10  # Valor reduzido para testes rápidos, aumente conforme necessário
-    )
-    epochs = 1
-    batch_size = 32
-    # TIMEOUT = 8
+    # Valores padrão (referência)
+    DEFAULT_ALPHA = 0.8
+    DEFAULT_DECAY = 0.999
+    DEFAULT_TARDINESS = 0.075
 
-    # Variáveis:
-    base_alpha = [0.3, 0.5, 0.8]
-    decay_of_base_alpha = [0.999, 0.99, 0.95]
-    tardiness_sensivity = [0.0, 0.075, 0.5]
-    distributions = [True, False]  # False = IID, True = Non-IID
+    # Valores a variar (um por vez, os outros ficam no padrão)
+    alpha_values = [0.3, 0.5, 0.8]
+    decay_values = [0.999, 0.99, 0.95]
+    tardiness_values = [0.0, 0.075, 0.5]
+    distributions = [False, True]  # IID, Non-IID
 
-    combinations = list(
-        itertools.product(
-            base_alpha, decay_of_base_alpha, tardiness_sensivity, distributions
-        )
-    )
+    # Monta experimentos one-at-a-time
+    experiments = []
 
-    print(
-        f"Total de {len(combinations)} experimentos agendados (Assíncronos)."
-    )
-    
+    for a in alpha_values:
+        for dist in distributions:
+            experiments.append((a, DEFAULT_DECAY, DEFAULT_TARDINESS, dist))
+
+    for d in decay_values:
+        for dist in distributions:
+            experiments.append((DEFAULT_ALPHA, d, DEFAULT_TARDINESS, dist))
+
+    for t in tardiness_values:
+        for dist in distributions:
+            experiments.append((DEFAULT_ALPHA, DEFAULT_DECAY, t, dist))
+
+    # Remove duplicatas (o ponto padrão aparece nos 3 grupos)
+    seen = set()
+    unique = []
+    for exp in experiments:
+        if exp not in seen:
+            seen.add(exp)
+            unique.append(exp)
+
+    print(f"Experimentos: {len(unique)}")
+    print(f"Config: updates={args.num_updates}, percentil=p{args.percentile}, clientes={args.num_clients}")
+    print(f"Referência: alpha={DEFAULT_ALPHA}, decay={DEFAULT_DECAY}, tardiness={DEFAULT_TARDINESS}\n")
+
     commands = []
-
-    for (
-        base_alpha,
-        decay_of_base_alpha,
-        tardiness_sensivity,
-        is_non_iid,
-    ) in combinations:
-        suffix = f"A{base_alpha}_B{decay_of_base_alpha}_C{tardiness_sensivity}_D{NUM_CLIENTS}"
-        dist_str = "Non-IID" if is_non_iid else "IID"
-
-        # ---------------------------------------------------------
-        # 1. Rodar Síncrono
-        # ---------------------------------------------------------
-        # TODO: Se for rodar os síncronos futuramente, criar comandos e adicionar no commands[]
-
-        # ---------------------------------------------------------
-        # 2. Preparar Comando Assíncrono
-        # ---------------------------------------------------------
+    for (alpha, decay, tardiness, is_non_iid) in unique:
+        suffix = f"async_A{alpha}_B{decay}_C{tardiness}_D{args.num_clients}"
         cmd = [
             "python", "asynchronous/main.py",
-            "--num-clients", str(NUM_CLIENTS),
-            "--num-updates", str(ROUNDS_OR_UPDATES),
-            "--epochs", str(epochs),
-            "--batch-size", str(batch_size),
-            "--base-alpha", str(base_alpha),
-            "--decay-of-base-alpha", str(decay_of_base_alpha),
-            "--tardiness-sensivity", str(tardiness_sensivity),
-            "--output-prefix", f"async_{suffix}"
+            "--num-clients", str(args.num_clients),
+            "--num-updates", str(args.num_updates),
+            "--epochs", str(args.epochs),
+            "--batch-size", str(args.batch_size),
+            "--base-alpha", str(alpha),
+            "--decay-of-base-alpha", str(decay),
+            "--tardiness-sensivity", str(tardiness),
+            "--percentile", str(args.percentile),
+            "--output-prefix", suffix,
         ]
         if is_non_iid:
             cmd.append("--non-iid")
-        
         commands.append(cmd)
 
-    print("\nIniciando testes usando subprocessos (Execução sequencial)")
-    
-    for cmd in commands:
+    print(f"Iniciando {len(commands)} experimentos sequencialmente...\n")
+    for i, cmd in enumerate(commands, 1):
+        print(f"--- Experimento {i}/{len(commands)} ---")
         run_simulation(cmd)
 
-    print("\n== Estudo de ablação finalizado com sucesso! ==")
+    # Gerar gráficos automaticamente
+    print("\n== Gerando gráficos ==")
+    for dist in ["iid", "non_iid"]:
+        for vary in ["base_alpha", "decay", "tardiness"]:
+            subprocess.run([
+                "python", "plot_ablation.py",
+                "--distribution", dist,
+                "--percentile", str(args.percentile),
+                "--vary", vary,
+            ])
+
+    print("\n== Estudo de ablação finalizado! ==")
 
 
 if __name__ == "__main__":

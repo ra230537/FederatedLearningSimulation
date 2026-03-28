@@ -53,9 +53,10 @@ def main(
     decay_of_base_alpha=0.999,
     tardiness_sensivity=0.075,
     output_prefix="",
+    single_percentile=None,
 ):
     accuracy_history = []
-    percentile_list = PERCENTILE_LIST
+    percentile_list = [single_percentile] if single_percentile else PERCENTILE_LIST
     number_of_clients = num_clients
     number_of_updates = num_updates
     local_epochs = epochs
@@ -135,6 +136,7 @@ if __name__ == "__main__":
     parser.add_argument("--decay-of-base-alpha", type=float, default=0.999)
     parser.add_argument("--tardiness-sensivity", type=float, default=0.075)
     parser.add_argument("--output-prefix", type=str, default="")
+    parser.add_argument("--percentile", type=int, default=None, help="Percentil unico (ex: 50). Padrao: todos de PERCENTILE_LIST")
     args = parser.parse_args()
 
     main(
@@ -146,5 +148,6 @@ if __name__ == "__main__":
         base_alpha=args.base_alpha,
         decay_of_base_alpha=args.decay_of_base_alpha,
         tardiness_sensivity=args.tardiness_sensivity,
-        output_prefix=args.output_prefix
+        output_prefix=args.output_prefix,
+        single_percentile=args.percentile,
     )
