@@ -78,12 +78,39 @@ def cnn_fashion_mnist() -> tf.keras.Model:
     )
 
 
+def cnn_gtsrb() -> tf.keras.Model:
+    # Input: 32x32x3 (RGB), 43 classes
+    return tf.keras.models.Sequential(
+        [
+            tf.keras.layers.Conv2D(
+                32,
+                (3, 3),
+                activation="relu",
+                padding="same",
+                input_shape=(32, 32, 3),  # pyright: ignore[reportCallIssue]
+            ),
+            tf.keras.layers.Conv2D(32, (3, 3), activation="relu", padding="same"),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            tf.keras.layers.Dropout(0.25),
+            tf.keras.layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
+            tf.keras.layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            tf.keras.layers.Dropout(0.25),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(512, activation="relu"),
+            tf.keras.layers.Dropout(0.5),
+            tf.keras.layers.Dense(43, activation="softmax"),
+        ]
+    )
+
+
 def get_model(model_name) -> tf.keras.Model:
     options = {
         "cnn": cnn_cifar10,
         "cnn_cifar10": cnn_cifar10,
         "cnn_mnist": cnn_mnist,
         "cnn_fashion_mnist": cnn_fashion_mnist,
+        "cnn_gtsrb": cnn_gtsrb,
     }
     if model_name not in options:
         raise ValueError(

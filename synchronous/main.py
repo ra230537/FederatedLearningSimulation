@@ -27,6 +27,7 @@ from constants import (
 from monte_carlo import get_percentiles_timeout
 from server import Server
 
+from utils.data_loader import get_dataset_info, load_dataset
 from utils.data_split import split_iid_data, split_non_iid_data
 from utils.plot_accuracy import generate_all_plots
 
@@ -34,16 +35,7 @@ np.random.seed(42)
 tf.random.set_seed(42)
 
 
-def load_data():
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-    x_train = x_train.astype("float32") / 255.0
-    x_test = x_test.astype("float32") / 255.0
-    train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    test_data = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-    return train_data, test_data
-
-
-def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output_prefix="", single_percentile=None):
+def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, dataset="cifar10", output_prefix="", single_percentile=None):
     accuracy_history = []
     number_of_clients = num_clients
     percentile_list = [single_percentile] if single_percentile else PERCENTILE_LIST
@@ -51,13 +43,14 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output
     local_epochs = epochs
     batch_size = batch_size
 
-    training_data, testing_data = load_data()
+    dataset_info = get_dataset_info(dataset)
+    training_data, testing_data = load_dataset(dataset)
     if is_non_iid:
         print("Usando dados não IID")
-        training_data_clients = split_non_iid_data(training_data, number_of_clients)
+        training_data_clients = split_non_iid_data(training_data, number_of_clients, dataset_info["num_classes"])
     else:
         print("Usando dados IID")
-        training_data_clients = split_iid_data(training_data, number_of_clients)
+        training_data_clients = split_iid_data(training_data, number_of_clients, dataset_info["num_classes"])
     percentiles_timeout = get_percentiles_timeout(
         percentile_list,
         MIN_CONNECTION_TIME,
@@ -81,7 +74,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output
             local_epochs,
             batch_size,
             testing_data,
-            "cnn",
+            dataset_info["model"],
         )
 
         server.setup_clients()
@@ -96,14 +89,15 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output
     tipo_dist = "non_iid" if is_non_iid else "iid"
     prefix_str = f"_{output_prefix}" if output_prefix else ""
     accuracy_data_name = f"accuracy_data_{tipo_dist}{prefix_str}.json"
-    
-    os.makedirs("output-cifar-10", exist_ok=True)
-    with open(f"output-cifar-10/{accuracy_data_name}", "w") as f:
+
+    output_dir = dataset_info["output_dir"]
+    os.makedirs(output_dir, exist_ok=True)
+    with open(f"{output_dir}/{accuracy_data_name}", "w") as f:
         json.dump(data, f, indent=2)
-    print(f"Dados salvos em output-cifar-10/{accuracy_data_name}")
+    print(f"Dados salvos em {output_dir}/{accuracy_data_name}")
 
     if not output_prefix:
-        generate_all_plots("output-cifar-10", is_non_iid, alpha=0.1, x_label="rodadas")
+        generate_all_plots(output_dir, is_non_iid, alpha=0.1, x_label="rodadas")
         
     tf.keras.backend.clear_session()
 
@@ -111,6 +105,7 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, output
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--non-iid", action="store_true", help="Distribution of data")
+    parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "mnist", "fashion_mnist", "gtsrb"], help="Dataset a usar (default: cifar10)")
     parser.add_argument("--percentile", type=int, default=None, help="Percentil unico (ex: 50). Padrao: todos de PERCENTILE_LIST")
     args = parser.parse_args()
     num_clients = NUM_CLIENTS
@@ -119,4 +114,4 @@ if __name__ == "__main__":
     epochs = LOCAL_EPOCHS
     batch_size = BATCH_SIZE
 
-    main(num_clients, round_num, timeout, epochs, batch_size, args.non_iid, single_percentile=args.percentile)
+    main(num_clients, round_num, timeout, epochs, batch_size, args.non_iid, dataset=args.dataset, single_percentile=args.percentile)

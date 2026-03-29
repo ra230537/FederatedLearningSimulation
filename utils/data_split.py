@@ -4,11 +4,11 @@ import math
 np.random.seed(42)
 tf.random.set_seed(42)
 
-def split_iid_data(train_data, num_clients):
-    percentages = np.random.dirichlet(alpha=np.ones(num_clients), size=1)[0]  
+def split_iid_data(train_data, num_clients, num_classes=10):
+    percentages = np.random.dirichlet(alpha=np.ones(num_clients), size=1)[0]
 
-    shuffled_data = train_data.shuffle(buffer_size=60000)
-    dataset_size = shuffled_data.cardinality().numpy()
+    dataset_size = train_data.cardinality().numpy()
+    shuffled_data = train_data.shuffle(buffer_size=dataset_size)
 
     split_sizes = (dataset_size * percentages).astype(int)  
 
@@ -24,7 +24,7 @@ def split_iid_data(train_data, num_clients):
 @train_data: Dados de treinamento
 @num_clients: quantidade de clientes
 '''
-def split_non_iid_data(train_data, num_clients):
+def split_non_iid_data(train_data, num_clients, num_classes=10):
     max_classes = 3
     x = []
     y = []
@@ -33,12 +33,12 @@ def split_non_iid_data(train_data, num_clients):
         y.append(j.numpy())
     x = np.array(x)
     y = np.array(y)
-    
-    allowed_clients_by_classes = get_allowed_clients_by_classes(num_clients, max_classes)
-    
-    sample_idx_by_classes, clients_size_by_classes = calculate_sample_allocations(allowed_clients_by_classes, y, num_clients)
 
-    samples_x_by_client, samples_y_by_client = get_samples_by_clients(clients_size_by_classes, sample_idx_by_classes, num_clients, x, y)
+    allowed_clients_by_classes = get_allowed_clients_by_classes(num_clients, max_classes, num_classes)
+
+    sample_idx_by_classes, clients_size_by_classes = calculate_sample_allocations(allowed_clients_by_classes, y, num_clients, num_classes)
+
+    samples_x_by_client, samples_y_by_client = get_samples_by_clients(clients_size_by_classes, sample_idx_by_classes, num_clients, x, y, num_classes)
     
     client_datasets = []
     for client_idx in range(num_clients):
@@ -54,34 +54,34 @@ def split_non_iid_data(train_data, num_clients):
         client_datasets.append(dataset)
     return client_datasets
 
-def get_allowed_clients_by_classes(num_clients, max_classes):
+def get_allowed_clients_by_classes(num_clients, max_classes, num_classes=10):
     # Indica quais clientes vão ter cada classe, cada cliente pode ter no maximo max_classes, porém cada classe vai ter vários clientes (indefinido)
-    # {1:[1, 3, 5, 32], 2:[1, 6, 32, ..], ...10:[...]}
-    allowed_clients_by_classes = {i: [] for i in range(10)}
+    # {1:[1, 3, 5, 32], 2:[1, 6, 32, ..], ...num_classes:[...]}
+    allowed_clients_by_classes = {i: [] for i in range(num_classes)}
     for client in range(num_clients):
         qty_classes = np.random.randint(1, max_classes + 1)
-        chosen_classes = np.random.choice(10, qty_classes, replace=False)
+        chosen_classes = np.random.choice(num_classes, qty_classes, replace=False)
         for _class in chosen_classes:
             allowed_clients_by_classes[_class].append(client)
-            
+
     # Agora precisamos garantir que nenhuma classe ficou sem cliente
-    for _class in range(10):
-        if (len(allowed_clients_by_classes[_class])==0):
-            #Atribuo essa classe a algum cliente
+    for _class in range(num_classes):
+        if len(allowed_clients_by_classes[_class]) == 0:
+            # Atribuo essa classe a algum cliente
             random_client = np.random.randint(num_clients)
             allowed_clients_by_classes[_class].append(random_client)
     return allowed_clients_by_classes
 
-def calculate_sample_allocations(allowed_clients_by_classes, y, num_clients):
+def calculate_sample_allocations(allowed_clients_by_classes, y, num_clients, num_classes=10):
     # Um mapeamento que indica o percentual que cada cliente possui de dados da classe (soma 100% para cada classe)
     # {class: [0.1,0.02,...]}, inicia como 0 porque ainda não sabemos a porcentagem, depois vamos preencher com base na distribuição de Dirichlet
-    classes_by_clients_percentage = {i: np.zeros(num_clients) for i in range(10)}
+    classes_by_clients_percentage = {i: np.zeros(num_clients) for i in range(num_classes)}
     # Um mapeamento que indica os indices que essa classe apareceu
     # {class: [1, 3, 5, 7}
     sample_idx_by_classes = {}
     # Indica quantos dados cada cliente vai ter.
     clients_size_by_classes = {}
-    for _class in range(10):
+    for _class in range(num_classes):
         valid_clients = allowed_clients_by_classes[_class]
         # Fala quanto cada cliente que conhece essa classe vai ter da mesma.
         dirichlet_result = np.random.dirichlet(alpha=np.ones(len(valid_clients)), size=1)[0]  # tamanho: valid_clients [0.2, 0.3, ...]
@@ -92,19 +92,19 @@ def calculate_sample_allocations(allowed_clients_by_classes, y, num_clients):
         sample_idx_by_classes[_class] = np.where(y == _class)[0]
         np.random.shuffle(sample_idx_by_classes[_class])
     # Agora eu preciso saber quantos dados cada classe tem
-    for _class in range(10):
+    for _class in range(num_classes):
         for client_percentage in classes_by_clients_percentage[_class]:
             if _class not in clients_size_by_classes:
                 clients_size_by_classes[_class] = []
             class_size = len(sample_idx_by_classes[_class])
-            clients_size_by_classes[_class].append(client_percentage*class_size)
+            clients_size_by_classes[_class].append(client_percentage * class_size)
     return sample_idx_by_classes, clients_size_by_classes
 
-def get_samples_by_clients(clients_size_by_classes, sample_idx_by_classes, num_clients, x, y):
+def get_samples_by_clients(clients_size_by_classes, sample_idx_by_classes, num_clients, x, y, num_classes=10):
     # {1: [x1, x2, x3, ...], 2: [x13, x25, x399, ...]}
     samples_x_by_client = {i: [] for i in range(num_clients)}
     samples_y_by_client = {i: [] for i in range(num_clients)}
-    for _class in range(10):
+    for _class in range(num_classes):
         current_idx = 0
         for client_idx in range(num_clients):
             # Obtém quantos dados esse cliente vai precisar para essa classe
