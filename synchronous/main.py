@@ -104,7 +104,9 @@ def main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, datase
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--non-iid", action="store_true", help="Distribution of data")
+    parser.add_argument("--non-iid", action="store_true", help="Roda apenas não-IID")
+    parser.add_argument("--iid", action="store_true", help="Roda apenas IID")
+    parser.add_argument("--no-timeout", action="store_true", help="Adiciona cenário sem timeout (T=MAX_CONNECTION+MAX_TRAIN)")
     parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "mnist", "fashion_mnist", "gtsrb"], help="Dataset a usar (default: cifar10)")
     parser.add_argument("--percentile", type=int, default=None, help="Percentil unico (ex: 50). Padrao: todos de PERCENTILE_LIST")
     args = parser.parse_args()
@@ -114,4 +116,12 @@ if __name__ == "__main__":
     epochs = LOCAL_EPOCHS
     batch_size = BATCH_SIZE
 
-    main(num_clients, round_num, timeout, epochs, batch_size, args.non_iid, dataset=args.dataset, single_percentile=args.percentile)
+    if args.non_iid:
+        distributions = [True]
+    elif args.iid:
+        distributions = [False]
+    else:
+        distributions = [False, True]
+
+    for is_non_iid in distributions:
+        main(num_clients, round_num, timeout, epochs, batch_size, is_non_iid, dataset=args.dataset, single_percentile=args.percentile, no_timeout=args.no_timeout)

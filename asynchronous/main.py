@@ -126,7 +126,8 @@ if __name__ == "__main__":
     parser.add_argument("--num-updates", type=int, default=NUM_UPDATES)
     parser.add_argument("--epochs", type=int, default=LOCAL_EPOCHS)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
-    parser.add_argument("--non-iid", action="store_true", help="Distribution of data")
+    parser.add_argument("--non-iid", action="store_true", help="Roda apenas não-IID")
+    parser.add_argument("--iid", action="store_true", help="Roda apenas IID")
     parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "mnist", "fashion_mnist", "gtsrb"], help="Dataset a usar (default: cifar10)")
     parser.add_argument("--base-alpha", type=float, default=0.8)
     parser.add_argument("--decay-of-base-alpha", type=float, default=0.999)
@@ -135,16 +136,24 @@ if __name__ == "__main__":
     parser.add_argument("--percentile", type=int, default=None, help="Percentil unico (ex: 50). Padrao: todos de PERCENTILE_LIST")
     args = parser.parse_args()
 
-    main(
-        num_clients=args.num_clients,
-        num_updates=args.num_updates,
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        is_non_iid=args.non_iid,
-        dataset=args.dataset,
-        base_alpha=args.base_alpha,
-        decay_of_base_alpha=args.decay_of_base_alpha,
-        tardiness_sensivity=args.tardiness_sensivity,
-        output_prefix=args.output_prefix,
-        single_percentile=args.percentile,
-    )
+    if args.non_iid:
+        distributions = [True]
+    elif args.iid:
+        distributions = [False]
+    else:
+        distributions = [False, True]
+
+    for is_non_iid in distributions:
+        main(
+            num_clients=args.num_clients,
+            num_updates=args.num_updates,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            is_non_iid=is_non_iid,
+            dataset=args.dataset,
+            base_alpha=args.base_alpha,
+            decay_of_base_alpha=args.decay_of_base_alpha,
+            tardiness_sensivity=args.tardiness_sensivity,
+            output_prefix=args.output_prefix,
+            single_percentile=args.percentile,
+        )
