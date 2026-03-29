@@ -87,32 +87,64 @@ def _load_fashion_mnist():
 
 
 def _load_gtsrb():
-    try:
-        import tensorflow_datasets as tfds
-    except ImportError:
-        raise ImportError(
-            "O dataset GTSRB requer tensorflow_datasets. "
-            "Instale com: pip install tensorflow-datasets"
-        )
+    import os
+    import urllib.request
+    import zipfile
 
-    def preprocess(sample):
-        image = tf.image.resize(sample["image"], [32, 32])
-        image = tf.cast(image, tf.float32) / 255.0
-        label = tf.cast(sample["label"], tf.int64)
-        return image, label
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "gtsrb")
+    train_dir = os.path.join(data_dir, "GTSRB", "Final_Training", "Images")
+    test_dir = os.path.join(data_dir, "GTSRB", "Final_Test", "Images")
 
-    ds_train = tfds.load("gtsrb", split="train", shuffle_files=False)
-    ds_test = tfds.load("gtsrb", split="test", shuffle_files=False)
+    train_url = "https://sid.erda.dk/public/archives/daaeac0d7ce1152aea9b61d9f1e19370/GTSRB_Final_Training_Images.zip"
+    test_url = "https://sid.erda.dk/public/archives/daaeac0d7ce1152aea9b61d9f1e19370/GTSRB_Final_Test_Images.zip"
+    test_gt_url = "https://sid.erda.dk/public/archives/daaeac0d7ce1152aea9b61d9f1e19370/GTSRB_Final_Test_GT.zip"
 
+    os.makedirs(data_dir, exist_ok=True)
+
+    def download_and_extract(url, dest):
+        zip_path = os.path.join(data_dir, os.path.basename(url))
+        if not os.path.exists(zip_path):
+            print(f"Baixando {os.path.basename(url)}...")
+            urllib.request.urlretrieve(url, zip_path)
+        print(f"Extraindo {os.path.basename(url)}...")
+        with zipfile.ZipFile(zip_path, "r") as z:
+            z.extractall(dest)
+
+    if not os.path.exists(train_dir):
+        download_and_extract(train_url, data_dir)
+    if not os.path.exists(test_dir):
+        download_and_extract(test_url, data_dir)
+    if not os.path.exists(os.path.join(data_dir, "GT-final_test.csv")):
+        download_and_extract(test_gt_url, data_dir)
+
+    import csv
+    from PIL import Image
+
+    def load_ppm_image(path):
+        img = Image.open(path).resize((32, 32))
+        return np.array(img, dtype="float32") / 255.0
+
+    # Treino: cada subpasta (00000-00042) é uma classe com CSV de anotações
     train_images, train_labels = [], []
-    for img, lbl in ds_train.map(preprocess):
-        train_images.append(img.numpy())
-        train_labels.append(lbl.numpy())
+    for class_id in range(43):
+        class_dir = os.path.join(train_dir, f"{class_id:05d}")
+        csv_file = os.path.join(class_dir, f"GT-{class_id:05d}.csv")
+        with open(csv_file, "r") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            for row in reader:
+                img_path = os.path.join(class_dir, row["Filename"])
+                train_images.append(load_ppm_image(img_path))
+                train_labels.append(class_id)
 
+    # Teste: imagens soltas em uma pasta, labels vêm do CSV
+    test_csv = os.path.join(data_dir, "GT-final_test.csv")
     test_images, test_labels = [], []
-    for img, lbl in ds_test.map(preprocess):
-        test_images.append(img.numpy())
-        test_labels.append(lbl.numpy())
+    with open(test_csv, "r") as f:
+        reader = csv.DictReader(f, delimiter=";")
+        for row in reader:
+            img_path = os.path.join(test_dir, row["Filename"])
+            test_images.append(load_ppm_image(img_path))
+            test_labels.append(int(row["ClassId"]))
 
     x_train = np.array(train_images)
     y_train = np.array(train_labels)

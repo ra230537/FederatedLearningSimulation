@@ -8,7 +8,12 @@ __pycache__/
 # Outputs/artefatos de experimento
 asynchronous/output-cifar-10/
 synchronous/output-cifar-10/
+asynchronous/output-*/
+synchronous/output-*/
 report/
+
+# Dados de datasets baixados
+data/
 
 # (opcional) ambientes locais
 .venv/
