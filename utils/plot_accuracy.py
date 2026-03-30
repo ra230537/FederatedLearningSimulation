@@ -70,7 +70,7 @@ def ema_confidence_bands(values, smoothed, alpha=0.1):
 # Helpers
 # ---------------------------------------------------------------------------
 
-COLORS = {"25": "#1f77b4", "50": "#ff7f0e", "75": "#2ca02c"}
+COLORS = {"25": "#1f77b4", "50": "#ff7f0e", "75": "#2ca02c", "include_no_timeout": "#d62728"}
 
 
 def normalize_label(label):
@@ -82,7 +82,23 @@ def normalize_label(label):
 
 
 def get_color(label):
-    return COLORS.get(normalize_label(label), None)
+    return COLORS.get(normalize_label(label), "#9467bd")
+
+
+def sort_key(label):
+    """Ordena labels numéricos primeiro, 'include_no_timeout' por último."""
+    try:
+        return float(label)
+    except ValueError:
+        return float("inf")
+
+
+def get_display_label(label):
+    """Retorna o texto de exibição para a legenda do gráfico."""
+    normalized = normalize_label(label)
+    if normalized == "include_no_timeout":
+        return "Sem timeout (100%)"
+    return f"{normalized}% conexão"
 
 
 def load_data(output_dir, is_non_iid):
@@ -109,18 +125,18 @@ def plot_smoothed_overlay(
     """Gráfico 1: Todas as curvas suavizadas sobrepostas."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    for label, entries in sorted(data.items(), key=lambda x: float(x[0])):
+    for label, entries in sorted(data.items(), key=lambda x: sort_key(x[0])):
         points = sorted(entries, key=lambda x: x["time"])
         acc = np.array([p["accuracy"] for p in points])
         smoothed = exponential_moving_average(acc, alpha)
         x_axis = np.arange(1, len(acc) + 1)
 
         color = get_color(label)
-        display = normalize_label(label)
+        display = get_display_label(label)
         ax.plot(
             x_axis,
             smoothed,
-            label=f"{display}% conexão (EMA, α={alpha})",
+            label=f"{display} (EMA, α={alpha})",
             linewidth=2,
             color=color,
         )
@@ -146,7 +162,7 @@ def plot_individual_bands(
     data, output_dir, is_non_iid, alpha=0.1, x_label="Atualizações"
 ):
     """Gráfico 2: Subplots individuais com banda de confiança (EMA)."""
-    labels = sorted(data.keys(), key=lambda x: float(x))
+    labels = sorted(data.keys(), key=sort_key)
     fig, axes = plt.subplots(1, len(labels), figsize=(5 * len(labels), 5), sharey=True)
 
     if len(labels) == 1:
@@ -160,13 +176,13 @@ def plot_individual_bands(
         x_axis = np.arange(1, len(acc) + 1)
 
         color = get_color(label)
-        display = normalize_label(label)
+        display = get_display_label(label)
         ax.fill_between(
             x_axis, lo, hi, alpha=0.2, color=color, label="Banda de confiança"
         )
         ax.plot(x_axis, smoothed, linewidth=2, color=color, label=f"EMA (α={alpha})")
 
-        ax.set_title(f"{display}% conexão", fontsize=12)
+        ax.set_title(display, fontsize=12)
         ax.set_xlabel(x_label, fontsize=11)
         ax.legend(fontsize=9, loc="lower right")
         ax.grid(True, alpha=0.3)
@@ -190,7 +206,7 @@ def plot_boxplot_by_range(
     data, output_dir, is_non_iid, n_bins=8, x_label="Faixa de atualizações"
 ):
     """Gráfico 3: Boxplot por faixas para comparação estatística."""
-    labels = sorted(data.keys(), key=lambda x: float(x))
+    labels = sorted(data.keys(), key=sort_key)
     max_items = max(len(data[label]) for label in labels)
     bin_edges = np.linspace(0, max_items, n_bins + 1, dtype=int)
 
@@ -213,13 +229,13 @@ def plot_boxplot_by_range(
                     tick_labels.append(f"{lo}-{min(hi, len(acc))}")
 
         color = get_color(label)
-        display = normalize_label(label)
+        display = get_display_label(label)
         bp = ax.boxplot(box_data, patch_artist=True, tick_labels=tick_labels)
         for patch in bp["boxes"]:
             patch.set_facecolor(color)
             patch.set_alpha(0.5)
 
-        ax.set_title(f"{display}% conexão", fontsize=12)
+        ax.set_title(display, fontsize=12)
         ax.set_xlabel(x_label, fontsize=11)
         ax.tick_params(axis="x", rotation=45)
         ax.grid(True, alpha=0.3, axis="y")

@@ -75,7 +75,11 @@ class Server:
     def distribute_weights(self):
         global_weights = self.global_model.get_weights()  # pyright: ignore[reportOptionalMemberAccess]
         for client in self.clients:
-            client.set_model_weights(global_weights)
+            was_updated = client.set_model_weights(global_weights)
+            if not was_updated:
+                print(
+                    f"Cliente {client.client_id} ainda estava treinando de rodada anterior; pesos globais nao atualizados nesta rodada."
+                )
 
     def train_clients(self, round_num):
 
@@ -107,8 +111,9 @@ class Server:
                     f"Cliente {client.client_id} excedeu o tempo limite na rodada {round_num}."
                 )
             else:
-                client_weights.append(client.get_model_weights())
-                client_sizes.append(client.get_dataset_size())
+                if client.has_fresh_update():
+                    client_weights.append(client.get_model_weights())
+                    client_sizes.append(client.get_dataset_size())
         print(
             f"Percentual de clientes na rodada {round_num + 1}: {100 * len(client_weights) / self.number_of_clients}%"
         )
