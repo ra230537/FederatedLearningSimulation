@@ -1,149 +1,267 @@
 # Simulador de Aprendizado Federado
 
-Simulador de aprendizado federado com abordagens **sincrona** e **assincrona** sobre o dataset CIFAR-10. Desenvolvido como parte de Iniciacao Cientifica FAPESP na UNICAMP, sob orientacao dos professores Luiz Fernando Bittencourt (UNICAMP) e Miguel Elias M. Campista (UFRJ).
+Simulador de aprendizado federado com abordagens sincronas e assincronas, com suporte a multiplos datasets e modelos CNN.
 
-## Estrutura do Projeto
+O projeto foi desenvolvido no contexto de iniciacao cientifica FAPESP na UNICAMP.
+
+## O que este repositorio faz
+
+- Simulacao de FL sincronizado (FedAvg por rodada)
+- Simulacao de FL assincrono (agregacao on-the-fly com staleness)
+- Particionamento IID e Non-IID
+- Timeout por percentis via Monte Carlo
+- Geracao automatica de graficos de acuracia
+- Estudo de ablacao para parametros do servidor assincrono
+
+## Datasets suportados
+
+Os scripts principais aceitam o argumento --dataset com as opcoes:
+
+- cifar10
+- mnist
+- fashion_mnist
+- gtsrb
+
+Diretorio de saida por dataset:
+
+- cifar10 -> output-cifar-10
+- mnist -> output-mnist
+- fashion_mnist -> output-fashion-mnist
+- gtsrb -> output-gtsrb
+
+## Estrutura do projeto
 
 ```
-├── synchronous/          # FL sincrono
-│   ├── main.py           # Ponto de entrada
-│   ├── server.py         # Agregacao FedAvg por rodada
-│   ├── client.py         # Treinamento local
-│   ├── constants.py      # Parametros de configuracao
-│   └── monte_carlo.py    # Calculo de timeout via Monte Carlo
-├── asynchronous/         # FL assincrono
-│   ├── main.py           # Ponto de entrada (com args de linha de comando)
-│   ├── server.py         # Agregacao on-the-fly com staleness-aware
-│   ├── client.py         # Loop continuo de treinamento/envio
-│   ├── constants.py      # Parametros de configuracao
-│   └── monte_carlo.py    # Calculo de timeout via Monte Carlo
+.
+├── synchronous/
+│   ├── main.py
+│   ├── server.py
+│   ├── client.py
+│   ├── constants.py
+│   └── monte_carlo.py
+├── asynchronous/
+│   ├── main.py
+│   ├── server.py
+│   ├── client.py
+│   ├── constants.py
+│   └── monte_carlo.py
 ├── utils/
-│   ├── models.py         # Arquitetura CNN para CIFAR-10
-│   ├── data_split.py     # Distribuicao IID e Non-IID
-│   └── plot_accuracy.py  # Graficos com EMA smoothing e boxplots
-├── ablation_study.py     # Varredura de parametros (async)
-├── plot_ablation.py      # Graficos comparativos do ablation study
-└── output-cifar-10/      # Resultados (JSONs e PNGs)
+│   ├── data_loader.py
+│   ├── data_split.py
+│   ├── models.py
+│   └── plot_accuracy.py
+├── ablation_study.py
+├── plot_ablation.py
+└── output-*/
 ```
 
-## Modelo
+## Requisitos
 
-CNN sequencial para CIFAR-10 (32x32x3, 10 classes):
+Python 3.10+ recomendado.
 
-```
-Conv2D(32) -> Conv2D(32) -> MaxPool -> Dropout(0.25)
-Conv2D(64) -> Conv2D(64) -> MaxPool -> Dropout(0.25)
-Flatten -> Dense(512) -> Dropout(0.5) -> Dense(10, softmax)
-```
+Pacotes principais:
 
-Otimizador: Adam. Loss: Sparse Categorical Crossentropy.
+- tensorflow
+- numpy
+- matplotlib
+- scipy
+- pillow
 
-## Distribuicao de Dados
+Arquivo de dependencias:
 
-- **IID:** Distribuicao Dirichlet entre os clientes.
-- **Non-IID:** Cada cliente recebe no maximo 3 classes. A proporcao de dados por classe e definida via Dirichlet. Todas as 10 classes sao garantidas no sistema.
+- requirements.txt
 
-## Abordagem Sincrona
-
-O servidor coordena rodadas: distribui pesos -> clientes treinam em paralelo (threads) -> servidor espera timeout -> agrega via FedAvg ponderado pelo tamanho do dataset de cada cliente.
-
-O timeout por rodada e calculado via simulacao de Monte Carlo (1M amostras) para os percentis 25%, 50% e 75%.
-
-### Parametros (`synchronous/constants.py`)
-
-| Parametro | Valor | Descricao |
-|-----------|:-----:|-----------|
-| `NUM_CLIENTS` | 40 | Clientes participantes |
-| `NUM_UPDATES` | 80 | Rodadas de treinamento |
-| `TIMEOUT` | 8s | Timeout fixo por rodada |
-| `LOCAL_EPOCHS` | 1 | Epocas locais por rodada |
-| `BATCH_SIZE` | 32 | Tamanho do batch |
-| `MIN/MAX_CONNECTION_TIME` | 0/5s | Latencia de conexao simulada |
-| `MIN/MAX_TRAIN_TIME` | 0/10s | Latencia de treinamento simulada |
-
-### Execucao
+Instalacao rapida:
 
 ```bash
-cd synchronous
-python main.py                  # IID, todos os percentis (p25, p50, p75)
-python main.py --non-iid        # Non-IID, todos os percentis
-python main.py --percentile 50  # Apenas p50
+python -m venv .venv
+
+# Linux/macOS
+source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-## Abordagem Assincrona
+Guia de comandos curtos:
 
-Clientes treinam continuamente e enviam atualizacoes sem esperar rodadas. O servidor agrega on-the-fly com penalizacao por staleness:
+- receitas_rapidas.md
 
-```
-agg_factor = base_alpha * decay^version * 1/(1 + tardiness_sensitivity * staleness)
-```
+## Como executar
 
-O timeout global e calculado via Monte Carlo, multiplicado pelo numero de atualizacoes.
+Todos os comandos abaixo assumem execucao na raiz do repositorio.
 
-### Parametros (`asynchronous/constants.py`)
+### 1) Simulacao sincrona
 
-| Parametro | Valor | Descricao |
-|-----------|:-----:|-----------|
-| `NUM_CLIENTS` | 40 | Clientes participantes |
-| `NUM_UPDATES` | 80 | Atualizacoes do modelo |
-| `LOCAL_EPOCHS` | 1 | Epocas locais |
-| `BATCH_SIZE` | 32 | Tamanho do batch |
-| `BASE_ALPHA` | 0.8 | Taxa de aprendizado inicial da agregacao |
-| `DECAY_OF_BASE_ALPHA` | 0.999 | Decaimento exponencial |
-| `TARDINESS_SENSITIVITY` | 0.075 | Penalizacao por staleness |
-| `MIN/MAX_CONNECTION_TIME` | 0/5s | Latencia de conexao simulada |
-| `MIN/MAX_TRAIN_TIME` | 0/90s | Latencia de treinamento simulada |
+Comportamento:
 
-### Execucao
+- Se nenhum flag de distribuicao for passado, roda IID e Non-IID
+- Por padrao roda percentis 25, 50 e 75
+- Opcionalmente roda um cenario extra sem timeout com --no-timeout
+
+Comandos:
 
 ```bash
-cd asynchronous
-python main.py                                             # IID, todos os percentis (p25, p50, p75)
-python main.py --non-iid                                   # Non-IID, todos os percentis
-python main.py --base-alpha 0.5 --tardiness-sensivity 0.1  # Parametros customizados
-python main.py --percentile 50                             # Apenas p50
+python synchronous/main.py
+python synchronous/main.py --dataset mnist
+python synchronous/main.py --dataset fashion_mnist --non-iid
+python synchronous/main.py --dataset gtsrb --iid --percentile 50
+python synchronous/main.py --dataset cifar10 --no-timeout
 ```
 
-## Ablation Study
+Argumentos disponiveis em synchronous/main.py:
 
-O `ablation_study.py` executa um estudo de ablacao com **variacao isolada** (one-at-a-time) no cenario assincrono. Cada parametro e variado individualmente enquanto os outros ficam no valor padrao (alpha=0.8, decay=0.999, tardiness=0.075):
+- --dataset {cifar10,mnist,fashion_mnist,gtsrb}
+- --iid
+- --non-iid
+- --percentile INT
+- --no-timeout
 
-- `base_alpha`: [0.3, 0.5, 0.8]
-- `decay_of_base_alpha`: [0.999, 0.99, 0.95]
-- `tardiness_sensivity`: [0.0, 0.075, 0.5]
-- Distribuicao: [IID, Non-IID]
+### 2) Simulacao assincrona
 
-Total: 14 experimentos unicos. Usa um unico percentil (default p50) para reduzir tempo de execucao.
+Comportamento:
+
+- Se nenhum flag de distribuicao for passado, roda IID e Non-IID
+- Por padrao roda percentis 25, 50 e 75
+- Permite ajustar hiperparametros da agregacao assincrona
+
+Comandos:
 
 ```bash
-python ablation_study.py                       # default: 40 updates, p50
-python ablation_study.py --num-updates 80      # mais updates (mais lento, melhor convergencia)
-python ablation_study.py --percentile 75       # usar p75 em vez de p50
+python asynchronous/main.py
+python asynchronous/main.py --dataset mnist --percentile 50
+python asynchronous/main.py --dataset gtsrb --non-iid --num-updates 40
+python asynchronous/main.py --base-alpha 0.5 --decay-of-base-alpha 0.99 --tardiness-sensivity 0.1
+python asynchronous/main.py --output-prefix experimento_teste
 ```
 
-### Graficos do Ablation
+Argumentos disponiveis em asynchronous/main.py:
 
-O `plot_ablation.py` gera graficos comparativos dos resultados:
+- --num-clients INT
+- --num-updates INT
+- --epochs INT
+- --batch-size INT
+- --dataset {cifar10,mnist,fashion_mnist,gtsrb}
+- --iid
+- --non-iid
+- --percentile INT
+- --base-alpha FLOAT
+- --decay-of-base-alpha FLOAT
+- --tardiness-sensivity FLOAT
+- --output-prefix STR
+
+### 3) Estudo de ablacao
+
+Script: ablation_study.py
+
+O estudo varia um parametro por vez no cenario assincrono e executa IID e Non-IID.
+
+Valores considerados:
+
+- base_alpha: 0.3, 0.5, 0.8
+- decay_of_base_alpha: 0.999, 0.99, 0.95
+- tardiness_sensivity: 0.0, 0.075, 0.5
+
+Comandos:
 
 ```bash
-python plot_ablation.py                                    # todos os parametros, IID
-python plot_ablation.py --distribution all --vary all      # todos os parametros, IID + Non-IID
-python plot_ablation.py --vary base_alpha --distribution iid  # so base_alpha, IID
-python plot_ablation.py --mode grid --distribution iid     # modo grid (facetas por alpha)
+python ablation_study.py
+python ablation_study.py --num-updates 80 --percentile 75
+python ablation_study.py --num-clients 20 --epochs 1 --batch-size 32
 ```
 
-## Visualizacao
+Importante:
 
-O modulo `utils/plot_accuracy.py` gera 3 tipos de graficos:
+- Atualmente o ablation_study.py chama asynchronous/main.py sem --dataset,
+  portanto usa cifar10 por padrao.
+- Saidas de ablacao sao gravadas em output-cifar-10.
 
-1. **Overlay suavizado:** curvas EMA (alpha=0.1) sobrepostas por percentil.
-2. **Subplots individuais:** um subplot por percentil com bandas de confianca EMA.
-3. **Boxplots por faixa:** distribuicao estatistica da acuracia em faixas temporais.
+### 4) Gerar graficos
 
-O eixo X usa "rodadas" no sincrono e "atualizacoes" no assincrono.
+Graficos de acuracia (gerais):
 
-## Saida
+```bash
+python -m utils.plot_accuracy --output-dir output-cifar-10
+python -m utils.plot_accuracy --output-dir output-mnist --non-iid --x-label atualizacoes
+```
 
-Resultados salvos em `output-cifar-10/`:
-- JSONs com tuplas (loss, accuracy, time) por percentil
-- PNGs dos graficos gerados
+Graficos do estudo de ablacao:
+
+```bash
+python plot_ablation.py --distribution iid --vary all
+python plot_ablation.py --distribution all --vary all --percentile 50
+python plot_ablation.py --mode grid --distribution iid --prefix async --percentile 50
+```
+
+## Benchmark estimado (Monte Carlo)
+
+Para estimar tempo sem rodar treino completo, use os mesmos modulos Monte Carlo do projeto.
+
+### Sincrono
+
+No sincrono, o modulo retorna timeout por rodada.
+Uma estimativa simples de tempo total e:
+
+- tempo_total_estimado ~= timeout_por_rodada * NUM_UPDATES
+
+Comando:
+
+```bash
+python -c "from synchronous.monte_carlo import get_percentiles_timeout;from synchronous.constants import MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME,NUM_UPDATES;ps=[25,50,75];ts=get_percentiles_timeout(ps,MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME);print({f'p{p}':{'timeout_por_rodada_s':float(t),'tempo_total_estimado_s':float(t*NUM_UPDATES)} for p,t in zip(ps,ts)})"
+```
+
+### Assincrono
+
+No assincrono, o modulo ja retorna timeout total para NUM_UPDATES.
+
+Comando:
+
+```bash
+python -c "from asynchronous.monte_carlo import get_percentiles_timeout;from asynchronous.constants import MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME,NUM_UPDATES;ps=[25,50,75];ts=get_percentiles_timeout(ps,NUM_UPDATES,MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME);print({f'p{p}':{'tempo_total_estimado_s':float(t)} for p,t in zip(ps,ts)})"
+```
+
+Essas estimativas sao boas para planejamento de execucao e comparacao entre cenarios.
+
+## Formato das saidas
+
+Os resultados de treino sao salvos em JSON, por exemplo:
+
+- accuracy_data_iid.json
+- accuracy_data_non_iid.json
+- accuracy_data_iid_experimento_teste.json
+
+Cada entrada contem:
+
+- loss
+- accuracy
+- time
+
+As imagens PNG de graficos tambem sao salvas no mesmo diretorio de saida.
+
+## Modelos usados
+
+Factory centralizada em utils/models.py:
+
+- cnn_cifar10
+- cnn_mnist
+- cnn_fashion_mnist
+- cnn_gtsrb
+
+O mapeamento dataset -> modelo e feito em utils/data_loader.py.
+
+## Boas praticas para manter o repositorio usavel
+
+- Evite versionar resultados massivos novos em output-*.
+- Prefira usar --percentile 50 em testes rapidos.
+- Reduza --num-updates durante debug inicial.
+- Use --output-prefix para separar experimentos sem sobrescrever arquivos.
+- Mantenha dados e artefatos grandes fora do controle de versao quando possivel.
+
+## Troubleshooting rapido
+
+- Erro de memoria/tempo: reduza --num-updates e/ou --num-clients.
+- Erro com GTSRB: confira permissao de escrita em data/gtsrb para download/extracao.
+- Sem graficos: confirme se os JSONs estao no diretorio passado em --output-dir.
