@@ -1,6 +1,6 @@
 asynchronous/__pycache__/
 synchronous/__pycache__/
-report/*
+# report/*
 # Python cache
 __pycache__/
 *.py[cod]
@@ -8,9 +8,10 @@ __pycache__/
 # Outputs/artefatos de experimento
 asynchronous/output-cifar-10/
 synchronous/output-cifar-10/
+output-cifar-10/
 asynchronous/output-*/
 synchronous/output-*/
-report/
+# report/
 
 # Dados de datasets baixados
 data/
