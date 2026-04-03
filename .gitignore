@@ -19,3 +19,7 @@ data/
 # (opcional) ambientes locais
 .venv/
 venv/
+
+# Contexto local do assistente e planos de implementação
+CLAUDE.md
+docs/superpowers/
