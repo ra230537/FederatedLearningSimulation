@@ -67,7 +67,7 @@ def run_ablation():
     for (alpha, decay, tardiness, is_non_iid) in unique:
         suffix = f"async_A{alpha}_B{decay}_C{tardiness}_D{args.num_clients}"
         cmd = [
-            "python", "asynchronous/main.py",
+            "python", "src/asynchronous/main.py",
             "--num-clients", str(args.num_clients),
             "--num-updates", str(args.num_updates),
             "--epochs", str(args.epochs),
@@ -92,7 +92,7 @@ def run_ablation():
     for dist in ["iid", "non_iid"]:
         for vary in ["base_alpha", "decay", "tardiness"]:
             subprocess.run([
-                "python", "plot_ablation.py",
+                "python", "experiments/plot_ablation.py",
                 "--distribution", dist,
                 "--percentile", str(args.percentile),
                 "--vary", vary,

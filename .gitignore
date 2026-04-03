@@ -1,27 +1,36 @@
-asynchronous/__pycache__/
-synchronous/__pycache__/
-# report/*
 # Python cache
 __pycache__/
 *.py[cod]
 
-# Outputs/artefatos de experimento
-asynchronous/output-cifar-10/
-synchronous/output-cifar-10/
-output-cifar-10/
-asynchronous/output-*/
-synchronous/output-*/
-# report/
+# Outputs de experimento (gerados em runtime)
+output-*/
+src/synchronous/output*/
+src/asynchronous/output*/
 
-# Dados de datasets baixados
+# Dados de datasets
 data/
 
-# (opcional) ambientes locais
+# LaTeX — arquivos auxiliares gerados pelo compilador
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+
+# Ambientes locais
 .venv/
 venv/
 
 # Worktrees
 .worktrees/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
 
 # Contexto local do assistente e planos de implementação
 CLAUDE.md
