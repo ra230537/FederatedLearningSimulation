@@ -20,6 +20,9 @@ data/
 .venv/
 venv/
 
+# Worktrees
+.worktrees/
+
 # Contexto local do assistente e planos de implementação
 CLAUDE.md
 docs/superpowers/
