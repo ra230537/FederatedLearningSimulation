@@ -12,11 +12,16 @@ import argparse
 import json
 import os
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
+
+
+def _get_plt():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    return plt
 
 # ---------------------------------------------------------------------------
 # Funções de suavização
@@ -123,6 +128,7 @@ def plot_smoothed_overlay(
     data, output_dir, is_non_iid, alpha=0.1, x_label="Número de atualizações"
 ):
     """Gráfico 1: Todas as curvas suavizadas sobrepostas."""
+    plt = _get_plt()
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for label, entries in sorted(data.items(), key=lambda x: sort_key(x[0])):
@@ -162,6 +168,7 @@ def plot_individual_bands(
     data, output_dir, is_non_iid, alpha=0.1, x_label="Atualizações"
 ):
     """Gráfico 2: Subplots individuais com banda de confiança (EMA)."""
+    plt = _get_plt()
     labels = sorted(data.keys(), key=sort_key)
     fig, axes = plt.subplots(1, len(labels), figsize=(5 * len(labels), 5), sharey=True)
 
@@ -206,6 +213,7 @@ def plot_boxplot_by_range(
     data, output_dir, is_non_iid, n_bins=8, x_label="Faixa de atualizações"
 ):
     """Gráfico 3: Boxplot por faixas para comparação estatística."""
+    plt = _get_plt()
     labels = sorted(data.keys(), key=sort_key)
     max_items = max(len(data[label]) for label in labels)
     bin_edges = np.linspace(0, max_items, n_bins + 1, dtype=int)
