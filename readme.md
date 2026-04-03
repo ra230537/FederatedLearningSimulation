@@ -33,25 +33,27 @@ Diretorio de saida por dataset:
 
 ```
 .
-├── synchronous/
-│   ├── main.py
-│   ├── server.py
-│   ├── client.py
-│   ├── constants.py
-│   └── monte_carlo.py
-├── asynchronous/
-│   ├── main.py
-│   ├── server.py
-│   ├── client.py
-│   ├── constants.py
-│   └── monte_carlo.py
-├── utils/
-│   ├── data_loader.py
-│   ├── data_split.py
-│   ├── models.py
-│   └── plot_accuracy.py
-├── ablation_study.py
-├── plot_ablation.py
+├── src/
+│   ├── synchronous/
+│   │   ├── main.py
+│   │   ├── server.py
+│   │   ├── client.py
+│   │   ├── constants.py
+│   │   └── monte_carlo.py
+│   ├── asynchronous/
+│   │   ├── main.py
+│   │   ├── server.py
+│   │   ├── client.py
+│   │   ├── constants.py
+│   │   └── monte_carlo.py
+│   └── utils/
+│       ├── data_loader.py
+│       ├── data_split.py
+│       ├── models.py
+│       └── plot_accuracy.py
+├── experiments/
+│   ├── ablation_study.py
+│   └── plot_ablation.py
 └── output-*/
 ```
 
@@ -71,7 +73,14 @@ Arquivo de dependencias:
 
 - requirements.txt
 
-Instalacao rapida:
+## Setup
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+```
+
+Instalacao rapida com venv:
 
 ```bash
 python -m venv .venv
@@ -84,6 +93,7 @@ source .venv/bin/activate
 
 pip install --upgrade pip
 pip install -r requirements.txt
+pip install -e .
 ```
 
 Guia de comandos curtos:
@@ -105,14 +115,14 @@ Comportamento:
 Comandos:
 
 ```bash
-python synchronous/main.py
-python synchronous/main.py --dataset mnist
-python synchronous/main.py --dataset fashion_mnist --non-iid
-python synchronous/main.py --dataset gtsrb --iid --percentile 50
-python synchronous/main.py --dataset cifar10 --no-timeout
+python src/synchronous/main.py
+python src/synchronous/main.py --dataset mnist
+python src/synchronous/main.py --dataset fashion_mnist --non-iid
+python src/synchronous/main.py --dataset gtsrb --iid --percentile 50
+python src/synchronous/main.py --dataset cifar10 --no-timeout
 ```
 
-Argumentos disponiveis em synchronous/main.py:
+Argumentos disponiveis em src/synchronous/main.py:
 
 - --dataset {cifar10,mnist,fashion_mnist,gtsrb}
 - --iid
@@ -131,14 +141,14 @@ Comportamento:
 Comandos:
 
 ```bash
-python asynchronous/main.py
-python asynchronous/main.py --dataset mnist --percentile 50
-python asynchronous/main.py --dataset gtsrb --non-iid --num-updates 40
-python asynchronous/main.py --base-alpha 0.5 --decay-of-base-alpha 0.99 --tardiness-sensivity 0.1
-python asynchronous/main.py --output-prefix experimento_teste
+python src/asynchronous/main.py
+python src/asynchronous/main.py --dataset mnist --percentile 50
+python src/asynchronous/main.py --dataset gtsrb --non-iid --num-updates 40
+python src/asynchronous/main.py --base-alpha 0.5 --decay-of-base-alpha 0.99 --tardiness-sensivity 0.1
+python src/asynchronous/main.py --output-prefix experimento_teste
 ```
 
-Argumentos disponiveis em asynchronous/main.py:
+Argumentos disponiveis em src/asynchronous/main.py:
 
 - --num-clients INT
 - --num-updates INT
@@ -155,7 +165,7 @@ Argumentos disponiveis em asynchronous/main.py:
 
 ### 3) Estudo de ablacao
 
-Script: ablation_study.py
+Script: experiments/ablation_study.py
 
 O estudo varia um parametro por vez no cenario assincrono e executa IID e Non-IID.
 
@@ -168,14 +178,14 @@ Valores considerados:
 Comandos:
 
 ```bash
-python ablation_study.py
-python ablation_study.py --num-updates 80 --percentile 75
-python ablation_study.py --num-clients 20 --epochs 1 --batch-size 32
+python experiments/ablation_study.py
+python experiments/ablation_study.py --num-updates 80 --percentile 75
+python experiments/ablation_study.py --num-clients 20 --epochs 1 --batch-size 32
 ```
 
 Importante:
 
-- Atualmente o ablation_study.py chama asynchronous/main.py sem --dataset,
+- Atualmente o experiments/ablation_study.py chama src/asynchronous/main.py sem --dataset,
   portanto usa cifar10 por padrao.
 - Saidas de ablacao sao gravadas em output-cifar-10.
 
@@ -191,9 +201,9 @@ python -m utils.plot_accuracy --output-dir output-mnist --non-iid --x-label atua
 Graficos do estudo de ablacao:
 
 ```bash
-python plot_ablation.py --distribution iid --vary all
-python plot_ablation.py --distribution all --vary all --percentile 50
-python plot_ablation.py --mode grid --distribution iid --prefix async --percentile 50
+python experiments/plot_ablation.py --distribution iid --vary all
+python experiments/plot_ablation.py --distribution all --vary all --percentile 50
+python experiments/plot_ablation.py --mode grid --distribution iid --prefix async --percentile 50
 ```
 
 ## Benchmark estimado (Monte Carlo)
@@ -210,7 +220,7 @@ Uma estimativa simples de tempo total e:
 Comando:
 
 ```bash
-python -c "from synchronous.monte_carlo import get_percentiles_timeout;from synchronous.constants import MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME,NUM_UPDATES;ps=[25,50,75];ts=get_percentiles_timeout(ps,MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME);print({f'p{p}':{'timeout_por_rodada_s':float(t),'tempo_total_estimado_s':float(t*NUM_UPDATES)} for p,t in zip(ps,ts)})"
+python -c "from src.synchronous.monte_carlo import get_percentiles_timeout;from src.synchronous.constants import MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME,NUM_UPDATES;ps=[25,50,75];ts=get_percentiles_timeout(ps,MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME);print({f'p{p}':{'timeout_por_rodada_s':float(t),'tempo_total_estimado_s':float(t*NUM_UPDATES)} for p,t in zip(ps,ts)})"
 ```
 
 ### Assincrono
@@ -220,7 +230,7 @@ No assincrono, o modulo ja retorna timeout total para NUM_UPDATES.
 Comando:
 
 ```bash
-python -c "from asynchronous.monte_carlo import get_percentiles_timeout;from asynchronous.constants import MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME,NUM_UPDATES;ps=[25,50,75];ts=get_percentiles_timeout(ps,NUM_UPDATES,MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME);print({f'p{p}':{'tempo_total_estimado_s':float(t)} for p,t in zip(ps,ts)})"
+python -c "from src.asynchronous.monte_carlo import get_percentiles_timeout;from src.asynchronous.constants import MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME,NUM_UPDATES;ps=[25,50,75];ts=get_percentiles_timeout(ps,NUM_UPDATES,MIN_CONNECTION_TIME,MAX_CONNECTION_TIME,MIN_TRAIN_TIME,MAX_TRAIN_TIME);print({f'p{p}':{'tempo_total_estimado_s':float(t)} for p,t in zip(ps,ts)})"
 ```
 
 Essas estimativas sao boas para planejamento de execucao e comparacao entre cenarios.
