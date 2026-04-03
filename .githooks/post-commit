@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# .githooks/post-commit
+#
+# Verifica e atualiza readme.md via Claude sempre que arquivos Python
+# ou requirements.txt forem commitados.
+#
+# Para ativar (rode uma vez na raiz do repositório):
+#   git config core.hooksPath .githooks
+#
+# Para desativar temporariamente:
+#   SKIP_README_HOOK=1 git commit ...
+
+# Pula se estiver desabilitado manualmente
+[ -n "${SKIP_README_HOOK:-}" ] && exit 0
+
+# Evita chamada recursiva (herdada por subprocessos do git commit --amend)
+[ -n "${CLAUDE_README_HOOK:-}" ] && exit 0
+export CLAUDE_README_HOOK=1
+
+# ---------------------------------------------------------------------------
+# 1. Obtém a lista de arquivos modificados neste commit
+# ---------------------------------------------------------------------------
+if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+  CHANGED=$(git diff --name-only HEAD~1 HEAD)
+else
+  # Primeiro commit do repositório
+  CHANGED=$(git show --name-only --format="" HEAD)
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Filtra apenas arquivos que podem exigir atualização no README
+#    (arquivos Python e requirements.txt)
+# ---------------------------------------------------------------------------
+RELEVANT=$(printf '%s\n' "$CHANGED" | grep -E '\.py$|^requirements\.txt$' || true)
+
+if [ -z "$RELEVANT" ]; then
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Verifica se o claude CLI está disponível
+# ---------------------------------------------------------------------------
+if ! command -v claude >/dev/null 2>&1; then
+  printf '\n⚠️  claude CLI não encontrado — readme.md não verificado.\n'
+  exit 0
+fi
+
+printf '\n📋 Verificando readme.md...\n'
+
+# Trecho do diff para dar contexto ao Claude (limitado a 120 linhas)
+DIFF_CONTEXT=$(git diff HEAD~1 HEAD -- $RELEVANT 2>/dev/null | head -n 120 || true)
+
+# ---------------------------------------------------------------------------
+# 4. Chama o Claude para avaliar e, se necessário, atualizar readme.md
+# ---------------------------------------------------------------------------
+PROMPT="Você é um assistente de documentação para um projeto de simulação de Federated Learning.
+
+Um commit acabou de modificar os seguintes arquivos:
+---
+$CHANGED
+---
+
+Arquivos Python ou de dependências que mudaram:
+$RELEVANT
+
+Trecho do diff:
+---
+$DIFF_CONTEXT
+---
+
+Sua tarefa:
+1. Leia o arquivo readme.md na raiz do projeto.
+2. Verifique APENAS se alguma dessas seções está desatualizada ou incompleta por causa das mudanças acima:
+   - Lista de datasets suportados e seus diretórios de saída
+   - Argumentos CLI de qualquer script (--dataset, --base-alpha, --output-prefix, etc.)
+   - Árvore de estrutura do projeto (novos arquivos relevantes adicionados)
+   - Dependências / requirements
+   - Convenção de nomes dos arquivos de saída JSON/PNG
+3. Se algo estiver desatualizado, faça a atualização mínima necessária diretamente em readme.md.
+4. Se nada precisar mudar, NÃO modifique o arquivo.
+
+Regras obrigatórias:
+- Não adicione seções sobre resultados de experimentos, benchmarks ou análises.
+- Não reescreva conteúdo que já está correto.
+- Mantenha o estilo do arquivo atual (português, sem acentos ortográficos, texto simples, sem emojis).
+- Seja extremamente conservador: só altere se houver algo claramente errado ou faltando."
+
+claude -p "$PROMPT" > /dev/null 2>&1
+
+# ---------------------------------------------------------------------------
+# 5. Se readme.md foi modificado, inclui no commit atual via amend
+# ---------------------------------------------------------------------------
+if ! git diff --quiet HEAD -- readme.md 2>/dev/null; then
+  git add readme.md
+  git commit --amend --no-edit --no-verify
+  printf '✅ readme.md atualizado e incluído no commit.\n'
+else
+  printf 'ℹ️  readme.md: sem alterações necessárias.\n'
+fi

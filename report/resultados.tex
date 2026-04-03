@@ -83,7 +83,7 @@ Atraso de treinamento                  & $\mathcal{U}(0,90)$ s & $\mathcal{U}(0,
 Probabilidade de conexão               & $p50$                 & —                     \\
 Fator base $\alpha_0$                  & 0{,}3 / 0{,}5 / 0{,}8 (ablação) & —           \\
 Decaimento $\delta$                    & 0{,}95 / 0{,}99 / 0{,}999 (ablação) & —       \\
-Sensibilidade $\rho$                   & 0 / 0{,}075 / 0{,}5 (ablação) & —             \\
+Sensibilidade $\lambda$                   & 0 / 0{,}075 / 0{,}5 (ablação) & —             \\
 Timeout (percentil via Monte Carlo)    & —                     & P25 / P50 / P75 / Sem \\
 Semente aleatória                      & 42                    & 42                    \\
 \bottomrule
@@ -100,15 +100,15 @@ e o limite máximo de $95{,}00$ s (sem timeout).
 
 Foram conduzidos 14 experimentos \textit{one-at-a-time}, variando isoladamente
 cada parâmetro do fator de agregação
-$\gamma_t = \alpha_0 \cdot \delta^{v} \cdot (1 + \rho\, s)^{-1}$.
+$\gamma_t = \alpha_0 \cdot \delta^{v_t} \cdot (1 + \lambda\, \tau_t)^{-1}$.
 As demais variáveis foram mantidas fixas nos valores padrão:
-$\alpha_0 = 0{,}8$, $\delta = 0{,}999$, $\rho = 0{,}075$.
+$\alpha_0 = 0{,}8$, $\delta = 0{,}999$, $\lambda = 0{,}075$.
 
 \subsection{Impacto do Fator Base $\alpha_0$}
 
 \begin{table}[H]
 \centering
-\caption{Impacto de $\alpha_0$ na acurácia. Fixos: $\delta=0{,}999$, $\rho=0{,}075$.}
+\caption{Impacto de $\alpha_0$ na acurácia. Fixos: $\delta=0{,}999$, $\lambda=0{,}075$.}
 \label{tab:alpha}
 \renewcommand{\arraystretch}{1.25}
 \resizebox{\textwidth}{!}{%
@@ -143,7 +143,7 @@ valores altos amplificam as oscilações causadas por updates heterogêneos.
 
 \begin{table}[H]
 \centering
-\caption{Impacto de $\delta$ na acurácia. Fixos: $\alpha_0=0{,}8$, $\rho=0{,}075$.}
+\caption{Impacto de $\delta$ na acurácia. Fixos: $\alpha_0=0{,}8$, $\lambda=0{,}075$.}
 \label{tab:beta}
 \renewcommand{\arraystretch}{1.25}
 \begin{tabular}{ccccc}
@@ -160,7 +160,7 @@ $\delta$ & IID máx. & IID avg\_last10 & Non-IID máx. & Non-IID avg\_last10 \\
 $\delta$ é o parâmetro mais crítico da fórmula. $\delta = 0{,}95$ causa
 estagnação em $\approx 32\%$ (IID) e colapso para acurácia aleatória (Non-IID).
 Após 100 atualizações: $0{,}95^{100} \approx 0{,}006$ vs.\ $0{,}999^{100} \approx 0{,}905$
-— o orçamento de aprendizado se esgota cedo demais com decaimento agressivo.
+.
 
 \begin{figure}[H]
     \centering
@@ -174,17 +174,17 @@ Após 100 atualizações: $0{,}95^{100} \approx 0{,}006$ vs.\ $0{,}999^{100} \ap
     \caption{Ablação de $\delta$ — cenário Não-IID.}
 \end{figure}
 
-\subsection{Impacto da Sensibilidade ao \textit{Staleness} $\rho$}
+\subsection{Impacto da Sensibilidade ao \textit{Staleness} $\lambda$}
 
 \begin{table}[H]
 \centering
-\caption{Impacto de $\rho$ na acurácia. Fixos: $\alpha_0=0{,}8$, $\delta=0{,}999$.}
+\caption{Impacto de $\lambda$ na acurácia. Fixos: $\alpha_0=0{,}8$, $\delta=0{,}999$.}
 \label{tab:gamma}
 \renewcommand{\arraystretch}{1.25}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{cccccc}
 \toprule
-$\rho$ & IID máx. & IID avg\_last10 & IID tail\_std & Non-IID máx. & Non-IID avg\_last10 \\
+$\lambda$ & IID máx. & IID avg\_last10 & IID tail\_std & Non-IID máx. & Non-IID avg\_last10 \\
 \midrule
 0{,}000 & 0{,}6788          & 0{,}6761          & 0{,}0098 & 0{,}2689          & 0{,}1600          \\
 0{,}075 & \textbf{0{,}6812} & \textbf{0{,}6800} & 0{,}0066 & \textbf{0{,}4604} & 0{,}3760          \\
@@ -192,24 +192,23 @@ $\rho$ & IID máx. & IID avg\_last10 & IID tail\_std & Non-IID máx. & Non-IID a
 \bottomrule
 \end{tabular}}
 \end{table}
-
-Sem penalização ($\rho = 0$), o modelo colapsa para $\approx 16\%$ em Non-IID —
-\textbf{falha total}. A penalização por \textit{staleness} é estruturalmente necessária
+% Aqui ele faz com que dados mais novos contribuam menos com o modelo global pra evitar de um modelo consolidado ser degradado
+Sem penalização ($\lambda = 0$), o modelo colapsa para $\approx 16\%$ em Non-IID. A penalização por \textit{staleness} é estruturalmente necessária
 para que a agregação assíncrona funcione em cenários heterogêneos: updates defasados
 de clientes com distribuições enviesadas corrompem o modelo global quando incorporados
-com peso integral. $\rho = 0{,}5$ oferece maior estabilidade ($\text{avg\_last10} = 0{,}44$)
+com peso integral. $\lambda = 0{,}5$ oferece maior estabilidade ($\text{avg\_last10} = 0{,}44$)
 ao custo de ligeira redução na velocidade de convergência.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{ablation_tardiness_iid_p50.png}
-    \caption{Ablação de $\rho$ — cenário IID.}
+    \caption{Ablação de $\lambda$ — cenário IID.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{ablation_tardiness_non_iid_p50.png}
-    \caption{Ablação de $\rho$ — cenário Não-IID.}
+    \caption{Ablação de $\lambda$ — cenário Não-IID.}
 \end{figure}
 
 \subsection{Conclusões da Ablação}
@@ -217,11 +216,11 @@ ao custo de ligeira redução na velocidade de convergência.
 \begin{enumerate}
     \item \textbf{$\delta$ é o parâmetro mais sensível}: valores abaixo de $0{,}999$
     causam degradação significativa; $\delta = 0{,}95$ é catastrófico em ambos os
-    cenários. Recomendação: $\delta \geq 0{,}999$.
-
-    \item \textbf{$\rho$ é dispensável em IID, mas indispensável em Non-IID}:
+    cenários.
+% Basicamente ele pune mais ou menos modelos mais antigos, pra evitar deles jogarem o resultado no lixo
+    \item \textbf{$\lambda$ é dispensável em IID, mas indispensável em Non-IID}:
     sem penalização por \textit{staleness}, o sistema simplesmente não funciona em
-    cenários heterogêneos — este resultado sugere que $\rho$ é um pré-requisito
+    cenários heterogêneos — este resultado sugere que $\lambda$ é um pré-requisito
     funcional, não um refinamento cosmético.
 
     \item \textbf{$\alpha_0$ apresenta trade-off estabilidade vs.\ velocidade}:
@@ -239,7 +238,7 @@ ao custo de ligeira redução na velocidade de convergência.
 \section{Generalização para Múltiplos Datasets — FL Assíncrono}
 
 Os parâmetros identificados na ablação ($\alpha_0 = 0{,}8$, $\delta = 0{,}999$,
-$\rho = 0{,}075$) foram aplicados sem ajuste fino a quatro datasets distintos,
+$\lambda = 0{,}075$) foram aplicados sem ajuste fino a quatro datasets distintos,
 por $\approx 1\text{h}33\text{min}$ cada.
 
 \subsection{Cenário IID}
@@ -303,7 +302,7 @@ GTSRB         & $-0{,}4726$ & $-0{,}7239$ & $33{,}3\times$ \\
 
 O GTSRB é o dataset mais sensível à heterogeneidade: queda de $47{,}26$ p.p.\ e
 instabilidade $33{,}3\times$ maior em Não-IID. Com 43 classes e dados de trânsito
-naturalmente desbalanceados por região, reforça a importância de $\rho$ adaptativo
+naturalmente desbalanceados por região, reforça a importância de $\lambda$ adaptativo
 em datasets multiclasse com alta heterogeneidade natural.
 
 O comportamento observado no CIFAR-10 generaliza para todos os datasets:
@@ -467,7 +466,7 @@ Sem timeout & \textbf{0{,}0374} & \textbf{40{,}4\%} & \textbf{51{,}4\%} \\
     e o sem-timeout é o único que ultrapassa $50\%$. A diferença de $12{,}1$ p.p.\
     entre P25 e sem-timeout (vs.\ $5{,}4$ p.p.\ no IID) indica que excluir clientes
     lentos prejudica a generalização em cenários heterogêneos, pois esses clientes
-    tendem a possuir dados sub-representados.
+    podem possuir dados sub-representados.
 
     \item \textbf{Para cenários dinâmicos} (e.g., dispositivos móveis), o timeout
     deve ser escolhido com cuidado. Um timeout muito curto pode excluir sistematicamente
