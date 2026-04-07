@@ -75,21 +75,17 @@ class Server:
     def distribute_weights(self):
         global_weights = self.global_model.get_weights()  # pyright: ignore[reportOptionalMemberAccess]
         for client in self.clients:
-            was_updated = client.set_model_weights(global_weights)
-            if not was_updated:
-                print(
-                    f"Cliente {client.client_id} ainda estava treinando de rodada anterior; pesos globais nao atualizados nesta rodada."
-                )
+            client.set_model_weights(global_weights)
 
     def train_clients(self, round_num):
-
         client_weights = []
         client_sizes = []
         threads = []
+        stop_event = threading.Event()
 
         for client in self.clients:
             thread = threading.Thread(
-                target=client.train, args=(self.local_epochs, self.batch_size)
+                target=client.train, args=(self.local_epochs, self.batch_size, stop_event)
             )
             threads.append((client, thread))
             thread.start()
@@ -97,33 +93,26 @@ class Server:
         if round_num == 0:
             time.sleep(1)
 
+        # Aguarda os clientes terminarem ou excederem o tempo limite
         round_start_time = time.time()
-        count_done_training = 0
-        while self.should_round_running(round_start_time, count_done_training):
-            count_done_training = sum(not t.is_alive() for _, t in threads)
-            if count_done_training == self.number_of_clients:
+        while time.time() - round_start_time < self.timeout:
+            if all(not t.is_alive() for _, t in threads):
                 break
             time.sleep(0.001)
 
+        stop_event.set()
         for client, thread in threads:
-            if thread.is_alive():
-                print(
-                    f"Cliente {client.client_id} excedeu o tempo limite na rodada {round_num}."
-                )
+            thread.join()
+            if client.has_fresh_update():
+                client_weights.append(client.get_model_weights())
+                client_sizes.append(client.get_dataset_size())
             else:
-                if client.has_fresh_update():
-                    client_weights.append(client.get_model_weights())
-                    client_sizes.append(client.get_dataset_size())
+                print(f"Cliente {client.client_id} excedeu o tempo limite na rodada {round_num}.")
+
         print(
             f"Percentual de clientes na rodada {round_num + 1}: {100 * len(client_weights) / self.number_of_clients}%"
         )
         return client_weights, client_sizes
-
-    def get_timeout(self):
-        return self.timeout
-
-    def should_round_running(self, round_start_time, count_done_training):
-        return time.time() - round_start_time < self.get_timeout()
 
     def start_training(self):
         self.start_time = time.time()

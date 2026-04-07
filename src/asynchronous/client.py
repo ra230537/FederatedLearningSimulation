@@ -20,10 +20,13 @@ class Client:
         self.local_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     def train(self, local_epochs, batch_size):
+        # Obtem os tempos de conexão e treinamento simulados
         start_training_time = time.time()
         connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
         train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
         time.sleep(connection_delay)
+        
+        # Usa o lock para garantir que apenas uma thread execute fit() por vez, evitando erros do TensorFlow
         with fit_lock:
             fit_start = time.time()
             self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
@@ -41,11 +44,15 @@ class Client:
     def train_multiple(self, number_of_updates, local_epochs, batch_size, server):
         for update_round in range(number_of_updates):
             start_time = time.time()
+            # Verifica se o timeout do servidor já foi atingido antes de iniciar o treinamento
             if server.event.is_set():
                 print(f'[TIMEOUT] Parando a execução do cliente {self.client_id} durante a atualização {update_round + 1}')
                 return
+            # Atualiza os pesos do modelo local com os pesos do servidor antes de treinar
             self.local_model.set_weights(server.get_model_weights())
             server_version = server.version
+            
+            # Obtem os pesos atualizados após o treinamento e envia para o servidor
             updated_weights = self.train(local_epochs, batch_size)
             updated_params = updated_weights, server_version, start_time
             print(f"Atualização {update_round + 1} do cliente {self.client_id} com a versão {server_version} do servidor")

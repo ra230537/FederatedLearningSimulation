@@ -96,6 +96,7 @@ class Server:
         )
 
     def start_training(self):
+        # Registra as threads e o tempo de início para monitorar o timeout
         self.start_time = time.time()
         threads = []
         for client in self.clients:
@@ -106,18 +107,21 @@ class Server:
             threads.append((client, thread))
             thread.start()
 
+        # Monitorar o tempo e interromper as threads dos clientes se o timeout for atingido 
         while time.time() - self.start_time < self.timeout:
             done_training = all(not t.is_alive() for _, t in threads)
             if done_training:
                 break
             time.sleep(0.5)
 
+        # Mostrar quais clientes excederam o tempo limite
         for client, thread in threads:
             if thread.is_alive():
                 print(f"Cliente {client.client_id} excedeu o tempo limite.")
-        # Make the flag true and we put a condition to stop the training if it is true.
+        # Marcar a flag como verdadeira para indicar que o timeout foi atingido
         self.event.set()
 
+        # Finalizar as threads dos clientes que ainda estão rodando após o timeout
         print("Aguardando finalização das threads dos clientes do último alerta de timeout...")
         for _, thread in threads:
             thread.join()
