@@ -39,9 +39,13 @@ class Client:
         # tempo total de processamento nao ultrapasse MAX_TRAIN_TIME
         remaining_delay = max(0.0, train_delay - fit_time)
         time.sleep(remaining_delay)
+        # Verifica novamente se o evento de parada foi acionado durante a simulação de atraso ou treinamento
+        # Isso porque eu não deveria aceitar atualizações de clientes que ainda estão treinando após o tempo limite
         end_training_time = time.time()
-        self._has_fresh_update = True
         print(f"Tempo de Execução do cliente {self.client_id}: {end_training_time-start_training_time:.2f}s (Fit real: {fit_time:.2f}s)")
+        if stop_event.is_set():
+            return
+        self._has_fresh_update = True
 
     def get_dataset_size(self):
         size = self.dataset.cardinality().numpy()
