@@ -106,14 +106,16 @@ def get_display_label(label):
     return f"{normalized}% conexão"
 
 
-def load_data(output_dir, is_non_iid):
+def load_data(output_dir, is_non_iid, filename=None):
     """Carrega dados de acurácia do JSON.
 
     Parâmetros:
         output_dir : diretório onde estão os arquivos JSON.
         is_non_iid : se True, carrega dados non-IID.
+        filename   : nome do arquivo JSON dentro do diretório. Se None, usa o padrão.
     """
-    filename = "accuracy_data_non_iid.json" if is_non_iid else "accuracy_data_iid.json"
+    if filename is None:
+        filename = "accuracy_data_non_iid.json" if is_non_iid else "accuracy_data_iid.json"
     filepath = os.path.join(output_dir, filename)
     with open(filepath, "r") as f:
         return json.load(f)
@@ -265,7 +267,8 @@ def plot_boxplot_by_range(
 
 
 def generate_all_plots(
-    output_dir, is_non_iid, alpha=0.1, n_bins=8, x_label="atualizações"
+    output_dir, is_non_iid, alpha=0.1, n_bins=8, x_label="atualizações",
+    filename=None,
 ):
     """Carrega os dados e gera todos os 3 gráficos.
 
@@ -275,8 +278,9 @@ def generate_all_plots(
         alpha      : fator de suavização EMA (default: 0.1).
         n_bins     : número de faixas para o boxplot (default: 8).
         x_label    : termo usado no eixo X (ex.: 'rodadas', 'atualizações').
+        filename   : nome do arquivo JSON dentro do diretório. Se None, usa o padrão.
     """
-    data = load_data(output_dir, is_non_iid)
+    data = load_data(output_dir, is_non_iid, filename=filename)
 
     print("=== Gráfico 1: Curvas suavizadas sobrepostas ===")
     plot_smoothed_overlay(
@@ -327,6 +331,12 @@ if __name__ == "__main__":
         default="atualizações",
         help="Termo do eixo X (default: atualizações)",
     )
+    parser.add_argument(
+        "--filename",
+        type=str,
+        default=None,
+        help="Nome do arquivo JSON dentro do diretório (ex: accuracy_data_non_iid_fix_learning_ratio.json)",
+    )
     args = parser.parse_args()
 
     generate_all_plots(
@@ -335,4 +345,5 @@ if __name__ == "__main__":
         alpha=args.alpha,
         n_bins=args.bins,
         x_label=args.x_label,
+        filename=args.filename,
     )
