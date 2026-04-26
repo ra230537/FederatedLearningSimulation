@@ -335,7 +335,7 @@ if __name__ == "__main__":
         "--filename",
         type=str,
         default=None,
-        help="Nome do arquivo JSON dentro do diretório (ex: accuracy_data_non_iid_fix_learning_ratio.json)",
+        help="Nome do arquivo JSON dentro do diretório (ex: accuracy_data_non_iid_experimento_teste.json)",
     )
     args = parser.parse_args()
 
