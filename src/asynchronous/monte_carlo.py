@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.stats import uniform
 
 
 def get_percentiles_timeout(
@@ -7,17 +6,26 @@ def get_percentiles_timeout(
     num_updates,
     min_connection_time,
     max_connection_time,
-    min_train_time,
-    max_train_time,
+    speed_tiers,
 ):
-    connection_dist = uniform(
-        loc=min_connection_time, scale=max_connection_time - min_connection_time
+    n_samples = 1_000_000
+    rng = np.random.default_rng(42)
+    connection_samples = rng.uniform(
+        min_connection_time, max_connection_time, size=n_samples
     )
-    train_dist = uniform(loc=min_train_time, scale=max_train_time - min_train_time)
-    connection_samples = connection_dist.rvs(1_000_000)
-    train_samples = train_dist.rvs(1_000_000)
+
+    proportions = np.array([t[3] for t in speed_tiers], dtype=float)
+    proportions /= proportions.sum()
+    tier_indices = rng.choice(len(speed_tiers), size=n_samples, p=proportions)
+
+    train_samples = np.empty(n_samples)
+    for i, (_, lo, hi, _) in enumerate(speed_tiers):
+        mask = tier_indices == i
+        n_in = int(mask.sum())
+        if n_in:
+            train_samples[mask] = rng.uniform(lo, hi, size=n_in)
+
     sum_samples = connection_samples + train_samples
-    # Used the value specified in the paper
     timeout = np.percentile(sum_samples, percentile_list) * num_updates
     print(f"Os timeouts são {timeout}")
     return timeout

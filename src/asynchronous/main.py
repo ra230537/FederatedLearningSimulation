@@ -9,6 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import argparse
 import json
+import random as _stdlib_random
 
 import numpy as np
 import tensorflow as tf
@@ -17,15 +18,35 @@ from constants import (
     BATCH_SIZE,
     LOCAL_EPOCHS,
     MAX_CONNECTION_TIME,
-    MAX_TRAIN_TIME,
     MIN_CONNECTION_TIME,
-    MIN_TRAIN_TIME,
     NUM_CLIENTS,
     NUM_UPDATES,
     PERCENTILE_LIST,
+    SPEED_TIER_SEED,
+    SPEED_TIERS,
 )
 from monte_carlo import get_percentiles_timeout
 from server import Server
+
+
+def assign_speed_tiers(num_clients, speed_tiers, seed):
+    """Distribui os clientes nos tiers respeitando as proporcoes e embaralha
+    deterministicamente para evitar correlacao com o client_id."""
+    counts = []
+    cumulative = 0
+    for i, (_, _, _, prop) in enumerate(speed_tiers):
+        if i < len(speed_tiers) - 1:
+            count = int(round(num_clients * prop))
+            counts.append(count)
+            cumulative += count
+        else:
+            counts.append(num_clients - cumulative)
+    assignments = []
+    for (name, lo, hi, _), count in zip(speed_tiers, counts):
+        assignments.extend([(name, lo, hi)] * count)
+    rng = _stdlib_random.Random(seed)
+    rng.shuffle(assignments)
+    return assignments
 
 from utils.data_loader import get_dataset_info, load_dataset
 from utils.data_split import split_iid_data, split_non_iid_data
@@ -68,15 +89,27 @@ def main(
         number_of_updates,
         MIN_CONNECTION_TIME,
         MAX_CONNECTION_TIME,
-        MIN_TRAIN_TIME,
-        MAX_TRAIN_TIME,
+        SPEED_TIERS,
     )
+    speed_assignments = assign_speed_tiers(
+        number_of_clients, SPEED_TIERS, SPEED_TIER_SEED
+    )
+    print("Distribuicao de tiers de velocidade dos clientes:")
+    for name, _, _, _ in SPEED_TIERS:
+        n = sum(1 for tier in speed_assignments if tier[0] == name)
+        print(f"  {name}: {n} cliente(s)")
     for i in range(len(percentiles_timeout)):
         timeout = percentiles_timeout[i]
         percentile = percentile_list[i]
         print(f"Timeout definido para {percentile}%: {timeout}")
         clients = [
-            Client(training_data_clients[i], i + 1) for i in range(number_of_clients)
+            Client(
+                training_data_clients[i],
+                i + 1,
+                (speed_assignments[i][1], speed_assignments[i][2]),
+                speed_assignments[i][0],
+            )
+            for i in range(number_of_clients)
         ]
 
         server = Server(

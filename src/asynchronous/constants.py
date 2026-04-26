@@ -1,9 +1,7 @@
 # constants.py
 
 MIN_CONNECTION_TIME = 0
-MAX_CONNECTION_TIME = 5
-MIN_TRAIN_TIME = 0
-MAX_TRAIN_TIME = 90
+MAX_CONNECTION_TIME = 1
 NUM_CLIENTS = 40
 NUM_UPDATES = 80
 TIMEOUT = 8
@@ -13,3 +11,13 @@ PERCENTILE_LIST = [25, 50, 75]
 BASE_ALPHA = 0.8
 DECAY_OF_BASE_ALPHA = 0.999
 TARDINESS_SENSITIVITY = 0.075
+
+# Heterogeneidade intrinseca de capacidade computacional dos clientes.
+# Cada tier: (nome, min_train_time, max_train_time, proporcao_de_clientes)
+SPEED_TIERS = [
+    ("fast",      1,  5,  0.50),
+    ("medium",    5,  12, 0.20),
+    ("slow",      12, 25, 0.20),
+    ("very_slow", 25, 40, 0.10),
+]
+SPEED_TIER_SEED = 42

@@ -10,10 +10,12 @@ random.seed(42)
 fit_lock = threading.Lock()
 
 class Client:
-    def __init__(self, dataset, client_id):
+    def __init__(self, dataset, client_id, train_time_range, speed_tier_name="fast"):
         self.local_model = None
         self.dataset = dataset
         self.client_id = client_id
+        self.train_time_range = train_time_range
+        self.speed_tier_name = speed_tier_name
 
     def setup_client(self, model):
         self.local_model = tf.keras.models.clone_model(model)
@@ -23,22 +25,22 @@ class Client:
         # Obtem os tempos de conexão e treinamento simulados
         start_training_time = time.time()
         connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
-        train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
+        train_delay = random.uniform(*self.train_time_range)
         time.sleep(connection_delay)
-        
+
         # Usa o lock para garantir que apenas uma thread execute fit() por vez, evitando erros do TensorFlow
         with fit_lock:
             fit_start = time.time()
             self.local_model.fit(self.dataset.batch(batch_size), epochs=local_epochs, verbose=0)
             fit_time = time.time() - fit_start
         # Desconta o tempo real do fit do delay simulado, garantindo que o
-        # tempo total de processamento nao ultrapasse MAX_TRAIN_TIME
+        # tempo total de processamento nao ultrapasse o teto do tier do cliente
         remaining_delay = max(0.0, train_delay - fit_time)
         time.sleep(remaining_delay)
         end_training_time = time.time()
         total_time = end_training_time - start_training_time
         total_delay = connection_delay + train_delay
-        print(f"[Cliente {self.client_id}] Finalizado em {total_time:.2f}s (Delay simulado: {total_delay:.2f}s | Fit real: {fit_time:.2f}s)")
+        print(f"[Cliente {self.client_id} | {self.speed_tier_name}] Finalizado em {total_time:.2f}s (Delay simulado: {total_delay:.2f}s | Fit real: {fit_time:.2f}s)")
         return self.local_model.get_weights()
 
     def train_multiple(self, number_of_updates, local_epochs, batch_size, server):
