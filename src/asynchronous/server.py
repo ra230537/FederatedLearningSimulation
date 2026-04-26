@@ -111,6 +111,9 @@ class Server:
         best_accuracy = 0.0
         smoothed_accuracy = None
         patience_counter = 0
+        last_accuracy = 0.0
+        last_loss = None
+        early_stop = self.stop_on_stability or self.target_accuracy is not None
 
         while pq:
             finish_time, _, client_idx, base_version, base_weights = heapq.heappop(pq)
@@ -132,56 +135,69 @@ class Server:
             self.update_global_weights(global_weights, updated_weights, base_version)
             self.global_model.set_weights(global_weights)
 
-            loss, accuracy = self.global_model.evaluate(  # pyright: ignore[reportGeneralTypeIssues]
-                self.testing_data.batch(self.batch_size), verbose=0
+            next_version = self.version + 1
+            should_eval = (
+                not early_stop
+                or next_version % self.stability_eval_every == 0
             )
+
+            if should_eval:
+                loss, accuracy = self.global_model.evaluate(  # pyright: ignore[reportGeneralTypeIssues]
+                    self.testing_data.batch(self.batch_size), verbose=0
+                )
+                last_loss = loss
+                last_accuracy = accuracy
+            else:
+                accuracy = last_accuracy
+                loss = last_loss
+
             self.accuracy_history.append((loss, accuracy, finish_time))
 
             staleness = self.version - base_version
             self.version += 1
             client.completed_updates += 1
 
-            print(
-                f"[t_virtual={finish_time:7.2f}s] Cliente {client.client_id} | "
-                f"{client.speed_tier_name} | base_v={base_version} | "
-                f"staleness={staleness} | acc={accuracy:.4f}"
-            )
+            if should_eval:
+                print(
+                    f"[t_virtual={finish_time:7.2f}s] Cliente {client.client_id} | "
+                    f"{client.speed_tier_name} | base_v={base_version} | "
+                    f"staleness={staleness} | acc={accuracy:.4f}"
+                )
 
-            if self.target_accuracy is not None and accuracy >= self.target_accuracy:
+            if self.target_accuracy is not None and should_eval and accuracy >= self.target_accuracy:
                 print(
                     f"Acurácia alvo {self.target_accuracy:.4f} atingida: {accuracy:.4f}. "
                     f"Parando treinamento."
                 )
                 break
 
-            if self.stop_on_stability:
-                if self.version % self.stability_eval_every == 0:
-                    if smoothed_accuracy is None:
-                        smoothed_accuracy = accuracy
-                    else:
-                        smoothed_accuracy = (
-                            self.stability_ema_alpha * accuracy
-                            + (1 - self.stability_ema_alpha) * smoothed_accuracy
-                        )
+            if self.stop_on_stability and should_eval:
+                if smoothed_accuracy is None:
+                    smoothed_accuracy = accuracy
+                else:
+                    smoothed_accuracy = (
+                        self.stability_ema_alpha * accuracy
+                        + (1 - self.stability_ema_alpha) * smoothed_accuracy
+                    )
 
-                    if smoothed_accuracy > best_accuracy + self.stability_delta:
-                        best_accuracy = smoothed_accuracy
-                        patience_counter = 0
-                    else:
-                        patience_counter += 1
+                if smoothed_accuracy > best_accuracy + self.stability_delta:
+                    best_accuracy = smoothed_accuracy
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
 
-                    if (
-                        self.version >= self.stability_min_rounds
-                        and patience_counter >= self.stability_patience
-                    ):
-                        print(
-                            f"Acurácia estabilizada (EMA alpha={self.stability_ema_alpha}). "
-                            f"Melhor suavizada: {best_accuracy:.4f}, "
-                            f"últimas {patience_counter} avaliações sem melhora "
-                            f"> {self.stability_delta} (avaliando a cada {self.stability_eval_every} rounds). "
-                            f"Parando treinamento."
-                        )
-                        break
+                if (
+                    self.version >= self.stability_min_rounds
+                    and patience_counter >= self.stability_patience
+                ):
+                    print(
+                        f"Acurácia estabilizada (EMA alpha={self.stability_ema_alpha}). "
+                        f"Melhor suavizada: {best_accuracy:.4f}, "
+                        f"últimas {patience_counter} avaliações sem melhora "
+                        f"> {self.stability_delta} (avaliando a cada {self.stability_eval_every} rounds). "
+                        f"Parando treinamento."
+                    )
+                    break
 
             if client.completed_updates < self.number_of_updates:
                 next_duration = self._sample_round_duration(client, rng)
