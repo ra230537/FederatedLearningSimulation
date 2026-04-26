@@ -15,6 +15,10 @@ import numpy as np
 import tensorflow as tf
 from client import Client
 from constants import (
+    ADAPTIVE_LR_BETA,
+    ADAPTIVE_LR_MAX,
+    ADAPTIVE_LR_MIN,
+    BASE_LEARNING_RATE,
     BATCH_SIZE,
     LOCAL_EPOCHS,
     MAX_CONNECTION_TIME,
@@ -24,6 +28,7 @@ from constants import (
     PERCENTILE_LIST,
     SPEED_TIER_SEED,
     SPEED_TIERS,
+    USE_ADAPTIVE_LR,
 )
 from monte_carlo import get_percentiles_timeout
 from server import Server
@@ -68,6 +73,11 @@ def main(
     dataset="cifar10",
     output_prefix="",
     single_percentile=None,
+    use_adaptive_lr=USE_ADAPTIVE_LR,
+    base_learning_rate=BASE_LEARNING_RATE,
+    adaptive_lr_beta=ADAPTIVE_LR_BETA,
+    adaptive_lr_min=ADAPTIVE_LR_MIN,
+    adaptive_lr_max=ADAPTIVE_LR_MAX,
 ):
     accuracy_history = []
     percentile_list = [single_percentile] if single_percentile else PERCENTILE_LIST
@@ -108,9 +118,19 @@ def main(
                 i + 1,
                 (speed_assignments[i][1], speed_assignments[i][2]),
                 speed_assignments[i][0],
+                base_learning_rate=base_learning_rate,
+                use_adaptive_lr=use_adaptive_lr,
+                adaptive_lr_beta=adaptive_lr_beta,
+                adaptive_lr_min=adaptive_lr_min,
+                adaptive_lr_max=adaptive_lr_max,
             )
             for i in range(number_of_clients)
         ]
+        if use_adaptive_lr:
+            print(
+                f"Adaptive LR ativo: eta_base={base_learning_rate}, beta={adaptive_lr_beta}, "
+                f"clip=[{adaptive_lr_min}, {adaptive_lr_max}]"
+            )
 
         server = Server(
             clients,
@@ -167,6 +187,11 @@ if __name__ == "__main__":
     parser.add_argument("--tardiness-sensivity", type=float, default=0.075)
     parser.add_argument("--output-prefix", type=str, default="")
     parser.add_argument("--percentile", type=int, default=None, help="Percentil unico (ex: 50). Padrao: todos de PERCENTILE_LIST")
+    parser.add_argument("--adaptive-lr", action="store_true", help="Ativa learning rate adaptativo por cliente (clipped_learning_ratio)")
+    parser.add_argument("--base-learning-rate", type=float, default=BASE_LEARNING_RATE)
+    parser.add_argument("--adaptive-lr-beta", type=float, default=ADAPTIVE_LR_BETA)
+    parser.add_argument("--adaptive-lr-min", type=float, default=ADAPTIVE_LR_MIN)
+    parser.add_argument("--adaptive-lr-max", type=float, default=ADAPTIVE_LR_MAX)
     args = parser.parse_args()
 
     if args.non_iid:
@@ -189,4 +214,9 @@ if __name__ == "__main__":
             tardiness_sensivity=args.tardiness_sensivity,
             output_prefix=args.output_prefix,
             single_percentile=args.percentile,
+            use_adaptive_lr=args.adaptive_lr,
+            base_learning_rate=args.base_learning_rate,
+            adaptive_lr_beta=args.adaptive_lr_beta,
+            adaptive_lr_min=args.adaptive_lr_min,
+            adaptive_lr_max=args.adaptive_lr_max,
         )

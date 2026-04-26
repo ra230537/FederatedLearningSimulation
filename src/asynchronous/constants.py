@@ -21,3 +21,10 @@ SPEED_TIERS = [
     ("very_slow", 25, 40, 0.10),
 ]
 SPEED_TIER_SEED = 42
+
+# Learning rate adaptativo por cliente (clipped_learning_ratio)
+BASE_LEARNING_RATE = 0.001
+ADAPTIVE_LR_BETA = 0.5
+ADAPTIVE_LR_MIN = 0.5
+ADAPTIVE_LR_MAX = 2.0
+USE_ADAPTIVE_LR = False

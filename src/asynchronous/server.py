@@ -52,6 +52,11 @@ class Server:
         with self.lock:
             return self.global_model.get_weights()
 
+    def get_mean_completed_updates(self):
+        if not self.clients:
+            return 0.0
+        return sum(c.completed_updates for c in self.clients) / len(self.clients)
+
     def aggregate_update(self, client, updated_params, round):
         # Garante que nós não vamos agregar nada depois do timeout
         if self.event.is_set():
