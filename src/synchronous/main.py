@@ -100,8 +100,10 @@ def main(num_clients, round_num, epochs, batch_size, is_non_iid, dataset="cifar1
     print(f"Dados salvos em {output_dir}/{accuracy_data_name}")
 
     if not output_prefix:
-        generate_all_plots(output_dir, is_non_iid,
-                           alpha=0.1, x_label="rodadas")
+        generate_all_plots(
+            output_dir, is_non_iid,
+            alpha=0.1, mode="Síncrono",
+        )
 
 
 if __name__ == "__main__":

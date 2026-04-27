@@ -21,6 +21,20 @@ def set_model_weights(model, weights):
             p.copy_(w.to(p.device))
 
 
+def _apply_keras_style_initialization(model):
+    """Aproxima a inicializacao PyTorch dos defaults usados no TensorFlow/Keras.
+
+    Os experimentos originais foram executados em TensorFlow. Ao migrar para
+    PyTorch para usar GPU, mantemos pesos Glorot/Xavier e bias zero para que a
+    mudanca de framework nao vire uma variavel experimental escondida.
+    """
+    for module in model.modules():
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
+            nn.init.xavier_uniform_(module.weight)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+
 class CNNCIFAR10(nn.Module):
     def __init__(self):
         super().__init__()
@@ -155,5 +169,6 @@ def get_model(model_name) -> nn.Module:
             f"Modelo inválido '{model_name}'. Opções: {list(options.keys())}"
         )
     model = options[model_name]()
+    _apply_keras_style_initialization(model)
     model.to(DEVICE)
     return model

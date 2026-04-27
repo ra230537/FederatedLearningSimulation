@@ -50,7 +50,7 @@ class Client:
         device = get_device()
         x, y = self.dataset
         dataset = TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.local_model.train()
         optimizer = torch.optim.Adam(self.local_model.parameters())
         criterion = nn.CrossEntropyLoss()

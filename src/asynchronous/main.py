@@ -184,7 +184,7 @@ def main(
 
     if not output_prefix:
         generate_all_plots(
-            output_dir, is_non_iid, alpha=0.1, x_label="atualizações"
+            output_dir, is_non_iid, alpha=0.1, mode="Assíncrono",
         )
 
 

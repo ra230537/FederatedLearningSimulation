@@ -14,6 +14,7 @@ class Client:
         speed_tier_name="fast",
     ):
         self.local_model = None
+        self.optimizer = None
         self.dataset = dataset  # tuple (x, y)
         self.client_id = client_id
         self.train_time_range = train_time_range
@@ -24,6 +25,16 @@ class Client:
         from utils.models import get_device, get_model_weights, set_model_weights
         self.local_model = type(model)().to(get_device())
         set_model_weights(self.local_model, get_model_weights(model))
+        # Migração TensorFlow -> PyTorch:
+        # no Keras, o optimizer criado em compile() persistia entre chamadas de fit()
+        # do mesmo cliente. Mantemos o Adam por cliente e seus defaults do Keras
+        # para tornar as curvas comparaveis com os experimentos TensorFlow anteriores.
+        self.optimizer = torch.optim.Adam(
+            self.local_model.parameters(),
+            lr=0.001,
+            betas=(0.9, 0.999),
+            eps=1e-7,
+        )
 
     def perform_fit(self, base_weights, local_epochs, batch_size):
         """Executa um round de treinamento local (sem sleeps, sem threading).
@@ -34,17 +45,16 @@ class Client:
 
         x, y = self.dataset
         dataset = TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.local_model.train()
-        optimizer = torch.optim.Adam(self.local_model.parameters())
         criterion = nn.CrossEntropyLoss()
         for _ in range(local_epochs):
             for batch_x, batch_y in loader:
                 batch_x, batch_y = batch_x.to(device), batch_y.to(device)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 outputs = self.local_model(batch_x)
                 loss = criterion(outputs, batch_y)
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
         return get_model_weights(self.local_model)
