@@ -1,8 +1,12 @@
-# Server.py
+# server.py
 
 import heapq
 import random
 import time
+
+import torch
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
 
 from constants import (
     ACCURACY_STABILITY_DELTA,
@@ -14,7 +18,7 @@ from constants import (
     STABILITY_EVAL_EVERY,
     STABILITY_MIN_ROUNDS,
 )
-from utils.models import get_model
+from utils.models import get_model, get_device, get_model_weights, set_model_weights
 
 
 class Server:
@@ -46,7 +50,7 @@ class Server:
         self.local_epochs = local_epochs
         self.batch_size = batch_size
         self.global_model = get_model(model_name)
-        self.testing_data = testing_data
+        self.testing_data = testing_data  # tuple (x_test, y_test)
         self.accuracy_history = []
         self.start_time = 0
         self.version = 0
@@ -60,12 +64,6 @@ class Server:
         self.stability_ema_alpha = stability_ema_alpha
         self.stability_eval_every = stability_eval_every
         self.stability_min_rounds = stability_min_rounds
-
-        self.global_model.compile(
-            optimizer="adam",
-            loss="sparse_categorical_crossentropy",
-            metrics=["accuracy"],
-        )
 
     def setup_clients(self):
         for client in self.clients:
@@ -91,6 +89,29 @@ class Server:
         train = rng.uniform(*client.train_time_range)
         return connection + train
 
+    def evaluate(self):
+        device = get_device()
+        self.global_model.eval()
+        x, y = self.testing_data
+        dataset = TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
+        loader = DataLoader(dataset, batch_size=self.batch_size)
+        criterion = nn.CrossEntropyLoss()
+        total_loss = 0.0
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for batch_x, batch_y in loader:
+                batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+                outputs = self.global_model(batch_x)
+                loss = criterion(outputs, batch_y)
+                total_loss += loss.item() * batch_x.size(0)
+                _, predicted = outputs.max(1)
+                correct += predicted.eq(batch_y).sum().item()
+                total += batch_y.size(0)
+        avg_loss = total_loss / total if total > 0 else 0.0
+        accuracy = correct / total if total > 0 else 0.0
+        return avg_loss, accuracy
+
     def start_training(self):
         """Simulacao por eventos discretos: cada update do cliente eh um
         evento agendado em tempo virtual. O heap garante processamento em
@@ -98,11 +119,9 @@ class Server:
         self.start_time = time.time()
         rng = random.Random(SIMULATION_SEED)
 
-        # Heap entries: (virtual_finish_time, seq, client_idx, base_version, base_weights)
-        # seq desempata tempos identicos e mantem ordem deterministica.
         pq = []
         seq = 0
-        initial_weights = self.global_model.get_weights()
+        initial_weights = get_model_weights(self.global_model)
         for idx, client in enumerate(self.clients):
             duration = self._sample_round_duration(client, rng)
             heapq.heappush(pq, (duration, seq, idx, 0, initial_weights))
@@ -120,7 +139,6 @@ class Server:
             client = self.clients[client_idx]
 
             if finish_time > self.timeout:
-                # Heap eh ordenado: tudo que sobra tambem excedeu o timeout.
                 late_ids = [client.client_id]
                 late_ids.extend(self.clients[ci].client_id for _, _, ci, _, _ in pq)
                 for cid in late_ids:
@@ -131,9 +149,9 @@ class Server:
                 base_weights, self.local_epochs, self.batch_size
             )
 
-            global_weights = self.global_model.get_weights()
+            global_weights = get_model_weights(self.global_model)
             self.update_global_weights(global_weights, updated_weights, base_version)
-            self.global_model.set_weights(global_weights)
+            set_model_weights(self.global_model, global_weights)
 
             next_version = self.version + 1
             should_eval = (
@@ -142,9 +160,7 @@ class Server:
             )
 
             if should_eval:
-                loss, accuracy = self.global_model.evaluate(  # pyright: ignore[reportGeneralTypeIssues]
-                    self.testing_data.batch(self.batch_size), verbose=0
-                )
+                loss, accuracy = self.evaluate()
                 last_loss = loss
                 last_accuracy = accuracy
             else:
@@ -208,14 +224,12 @@ class Server:
                         seq,
                         client_idx,
                         self.version,
-                        self.global_model.get_weights(),
+                        get_model_weights(self.global_model),
                     ),
                 )
                 seq += 1
 
-        loss, accuracy = self.global_model.evaluate(  # pyright: ignore[reportGeneralTypeIssues]
-            self.testing_data.batch(self.batch_size), verbose=0
-        )
+        loss, accuracy = self.evaluate()
         wall_clock = time.time() - self.start_time
         print("Treinamento federado assíncrono (DES) concluído.")
         print(f"Perda final do modelo global: {loss:.4f}")

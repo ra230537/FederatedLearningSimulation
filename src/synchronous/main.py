@@ -1,4 +1,4 @@
-# Main.py
+# main.py
 
 import sys
 import os
@@ -22,15 +22,14 @@ from constants import (
     TIMEOUT,
 )
 from client import Client
-import tensorflow as tf
 import numpy as np
 import json
 import argparse
 
-
+import torch
 
 np.random.seed(42)
-tf.random.set_seed(42)
+torch.manual_seed(42)
 
 
 def main(num_clients, round_num, epochs, batch_size, is_non_iid, dataset="cifar10", output_prefix="", single_percentile=None, include_no_timeout=False):
@@ -103,8 +102,6 @@ def main(num_clients, round_num, epochs, batch_size, is_non_iid, dataset="cifar1
     if not output_prefix:
         generate_all_plots(output_dir, is_non_iid,
                            alpha=0.1, x_label="rodadas")
-
-    tf.keras.backend.clear_session()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
-#Client.py
-import tensorflow as tf
+# client.py
+import torch
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
 from constants import *
 
 
@@ -12,25 +14,37 @@ class Client:
         speed_tier_name="fast",
     ):
         self.local_model = None
-        self.dataset = dataset
+        self.dataset = dataset  # tuple (x, y)
         self.client_id = client_id
         self.train_time_range = train_time_range
         self.speed_tier_name = speed_tier_name
         self.completed_updates = 0
 
     def setup_client(self, model):
-        self.local_model = tf.keras.models.clone_model(model)
-        self.local_model.compile(
-            optimizer='adam',
-            loss='sparse_categorical_crossentropy',
-            metrics=['accuracy'],
-        )
+        from utils.models import get_device, get_model_weights, set_model_weights
+        self.local_model = type(model)().to(get_device())
+        set_model_weights(self.local_model, get_model_weights(model))
 
     def perform_fit(self, base_weights, local_epochs, batch_size):
         """Executa um round de treinamento local (sem sleeps, sem threading).
         Retorna os pesos atualizados."""
-        self.local_model.set_weights(base_weights)
-        self.local_model.fit(
-            self.dataset.batch(batch_size), epochs=local_epochs, verbose=0
-        )
-        return self.local_model.get_weights()
+        from utils.models import get_device, get_model_weights, set_model_weights
+        device = get_device()
+        set_model_weights(self.local_model, base_weights)
+
+        x, y = self.dataset
+        dataset = TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        self.local_model.train()
+        optimizer = torch.optim.Adam(self.local_model.parameters())
+        criterion = nn.CrossEntropyLoss()
+        for _ in range(local_epochs):
+            for batch_x, batch_y in loader:
+                batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+                optimizer.zero_grad()
+                outputs = self.local_model(batch_x)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+
+        return get_model_weights(self.local_model)

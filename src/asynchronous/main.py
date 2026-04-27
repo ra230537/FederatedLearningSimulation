@@ -1,4 +1,4 @@
-# Main.py
+# main.py
 
 import os
 import sys
@@ -12,7 +12,7 @@ import json
 import random as _stdlib_random
 
 import numpy as np
-import tensorflow as tf
+import torch
 from client import Client
 from constants import (
     ACCURACY_STABILITY_DELTA,
@@ -58,7 +58,7 @@ from utils.data_split import split_iid_data, split_non_iid_data
 from utils.plot_accuracy import generate_all_plots
 
 np.random.seed(42)
-tf.random.set_seed(42)
+torch.manual_seed(42)
 
 
 def main(
@@ -187,7 +187,6 @@ def main(
             output_dir, is_non_iid, alpha=0.1, x_label="atualizações"
         )
 
-    tf.keras.backend.clear_session()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

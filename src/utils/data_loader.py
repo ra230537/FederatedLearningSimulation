@@ -1,28 +1,28 @@
 import numpy as np
-import tensorflow as tf
+import torchvision.datasets as datasets
 
 DATASET_INFO = {
     "cifar10": {
         "num_classes": 10,
-        "input_shape": (32, 32, 3),
+        "input_shape": (3, 32, 32),
         "model": "cnn_cifar10",
         "output_dir": "output-cifar-10",
     },
     "mnist": {
         "num_classes": 10,
-        "input_shape": (28, 28, 1),
+        "input_shape": (1, 28, 28),
         "model": "cnn_mnist",
         "output_dir": "output-mnist",
     },
     "fashion_mnist": {
         "num_classes": 10,
-        "input_shape": (28, 28, 1),
+        "input_shape": (1, 28, 28),
         "model": "cnn_fashion_mnist",
         "output_dir": "output-fashion-mnist",
     },
     "gtsrb": {
         "num_classes": 43,
-        "input_shape": (32, 32, 3),
+        "input_shape": (3, 32, 32),
         "model": "cnn_gtsrb",
         "output_dir": "output-gtsrb",
     },
@@ -30,10 +30,7 @@ DATASET_INFO = {
 
 VALID_DATASETS = list(DATASET_INFO.keys())
 
-'''
-Recebe o nome do dataset
-Retorna suas classes, seu shape, nome do dicionario de models.py e o nome de sua pasta
-'''
+
 def get_dataset_info(dataset_name: str) -> dict:
     if dataset_name not in DATASET_INFO:
         raise ValueError(
@@ -41,10 +38,7 @@ def get_dataset_info(dataset_name: str) -> dict:
         )
     return DATASET_INFO[dataset_name]
 
-'''
-Recebe o nome do dataset
-retorna seus dados
-'''
+
 def load_dataset(dataset_name: str):
     if dataset_name not in DATASET_INFO:
         raise ValueError(
@@ -60,30 +54,33 @@ def load_dataset(dataset_name: str):
 
 
 def _load_cifar10():
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-    x_train = x_train.astype("float32") / 255.0
-    x_test = x_test.astype("float32") / 255.0
-    train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    test_data = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-    return train_data, test_data
+    train = datasets.CIFAR10(root="./data", train=True, download=True)
+    test = datasets.CIFAR10(root="./data", train=False, download=True)
+    x_train = np.array(train.data, dtype=np.float32).transpose(0, 3, 1, 2) / 255.0
+    y_train = np.array(train.targets, dtype=np.int64)
+    x_test = np.array(test.data, dtype=np.float32).transpose(0, 3, 1, 2) / 255.0
+    y_test = np.array(test.targets, dtype=np.int64)
+    return (x_train, y_train), (x_test, y_test)
 
 
 def _load_mnist():
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
-    x_train = x_train[..., np.newaxis].astype("float32") / 255.0
-    x_test = x_test[..., np.newaxis].astype("float32") / 255.0
-    train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    test_data = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-    return train_data, test_data
+    train = datasets.MNIST(root="./data", train=True, download=True)
+    test = datasets.MNIST(root="./data", train=False, download=True)
+    x_train = train.data.numpy().astype(np.float32).reshape(-1, 1, 28, 28) / 255.0
+    y_train = train.targets.numpy().astype(np.int64)
+    x_test = test.data.numpy().astype(np.float32).reshape(-1, 1, 28, 28) / 255.0
+    y_test = test.targets.numpy().astype(np.int64)
+    return (x_train, y_train), (x_test, y_test)
 
 
 def _load_fashion_mnist():
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
-    x_train = x_train[..., np.newaxis].astype("float32") / 255.0
-    x_test = x_test[..., np.newaxis].astype("float32") / 255.0
-    train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    test_data = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-    return train_data, test_data
+    train = datasets.FashionMNIST(root="./data", train=True, download=True)
+    test = datasets.FashionMNIST(root="./data", train=False, download=True)
+    x_train = train.data.numpy().astype(np.float32).reshape(-1, 1, 28, 28) / 255.0
+    y_train = train.targets.numpy().astype(np.int64)
+    x_test = test.data.numpy().astype(np.float32).reshape(-1, 1, 28, 28) / 255.0
+    y_test = test.targets.numpy().astype(np.int64)
+    return (x_train, y_train), (x_test, y_test)
 
 
 def _load_gtsrb():
@@ -122,9 +119,8 @@ def _load_gtsrb():
 
     def load_ppm_image(path):
         img = Image.open(path).resize((32, 32))
-        return np.array(img, dtype="float32") / 255.0
+        return np.array(img, dtype=np.float32).transpose(2, 0, 1) / 255.0
 
-    # Treino: cada subpasta (00000-00042) é uma classe com CSV de anotações
     train_images, train_labels = [], []
     for class_id in range(43):
         class_dir = os.path.join(train_dir, f"{class_id:05d}")
@@ -136,7 +132,6 @@ def _load_gtsrb():
                 train_images.append(load_ppm_image(img_path))
                 train_labels.append(class_id)
 
-    # Teste: imagens soltas em uma pasta, labels vêm do CSV
     test_csv = os.path.join(data_dir, "GT-final_test.csv")
     test_images, test_labels = [], []
     with open(test_csv, "r") as f:
@@ -147,10 +142,8 @@ def _load_gtsrb():
             test_labels.append(int(row["ClassId"]))
 
     x_train = np.array(train_images)
-    y_train = np.array(train_labels)
+    y_train = np.array(train_labels, dtype=np.int64)
     x_test = np.array(test_images)
-    y_test = np.array(test_labels)
+    y_test = np.array(test_labels, dtype=np.int64)
 
-    train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    test_data = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-    return train_data, test_data
+    return (x_train, y_train), (x_test, y_test)
