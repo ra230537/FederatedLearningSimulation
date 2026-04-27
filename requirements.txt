@@ -1,5 +1,5 @@
 numpy
 scipy
 matplotlib
-tensorflow
+tensorflow[and-cuda]
 pillow
