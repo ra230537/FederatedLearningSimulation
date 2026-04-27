@@ -7,6 +7,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+from utils.ema import exponential_moving_average
+
 # ---------------------------------------------------------------------------
 # Resolução de caminhos (independente de CWD)
 # ---------------------------------------------------------------------------
@@ -89,16 +93,6 @@ _COLOR_SYNC  = "#1f77b4"
 _COLOR_ASYNC = "#ff7f0e"
 
 
-def _ema(values, alpha=0.1):
-    """Média Móvel Exponencial. Mesma implementação de utils/plot_accuracy.py."""
-    values = np.asarray(values, dtype=float)
-    result = np.empty(len(values))
-    result[0] = values[0]
-    for i in range(1, len(values)):
-        result[i] = alpha * values[i] + (1 - alpha) * result[i - 1]
-    return result
-
-
 def plot_comparison(sync_data, async_data, dist_label, dataset, output_dir, alpha=0.1):
     """Gera PNG com 3 subplots (p25/p50/p75) comparando sync vs async.
 
@@ -126,7 +120,7 @@ def plot_comparison(sync_data, async_data, dist_label, dataset, output_dir, alph
             entries = sorted(sync_data[p], key=lambda e: e["time"])
             times = [e["time"] for e in entries]
             accs  = [e["accuracy"] for e in entries]
-            smoothed = _ema(accs, alpha)
+            smoothed = exponential_moving_average(accs, alpha)
             ax.plot(times, accs, color=_COLOR_SYNC, alpha=0.35, linewidth=0.5)
             ax.plot(times, smoothed, color=_COLOR_SYNC, linewidth=2,
                     label="Síncrono")
@@ -137,7 +131,7 @@ def plot_comparison(sync_data, async_data, dist_label, dataset, output_dir, alph
             entries = sorted(async_data[p], key=lambda e: e["time"])
             times = [e["time"] for e in entries]
             accs  = [e["accuracy"] for e in entries]
-            smoothed = _ema(accs, alpha)
+            smoothed = exponential_moving_average(accs, alpha)
             ax.plot(times, accs, color=_COLOR_ASYNC, alpha=0.35, linewidth=0.5)
             ax.plot(times, smoothed, color=_COLOR_ASYNC, linewidth=2,
                     label="Assíncrono")

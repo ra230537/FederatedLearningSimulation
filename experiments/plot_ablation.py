@@ -11,17 +11,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-def exponential_moving_average(values, alpha=0.1):
-    values = np.asarray(values, dtype=float)
-    n = len(values)
-    if n == 0:
-        return values
-    result = np.empty(n)
-    result[0] = values[0]
-    for i in range(1, n):
-        result[i] = alpha * values[i] + (1 - alpha) * result[i - 1]
-    return result
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+from utils.ema import exponential_moving_average
 
 
 def parse_experiment_metadata(filename):
