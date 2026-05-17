@@ -1,11 +1,20 @@
 # server.py
 
-import threading
 import time
+import heapq
 
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
+import random
+
+from constants import (
+    MAX_CONNECTION_TIME,
+    MIN_CONNECTION_TIME,
+    MIN_TRAIN_TIME,
+    MAX_TRAIN_TIME,
+    SIMULATION_SEED,
+)
 
 from utils.models import get_model, get_device, get_model_weights, set_model_weights
 
@@ -82,36 +91,34 @@ class Server:
         for client in self.clients:
             client.set_model_weights(global_weights)
 
+    def _sample_round_duration(self, rng):
+        connection = rng.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
+        train = rng.uniform(MIN_TRAIN_TIME,MAX_TRAIN_TIME)
+        return connection + train
+
     def train_clients(self, round_num):
         client_weights = []
         client_sizes = []
-        threads = []
-        stop_event = threading.Event()
+        pq = []
 
-        for client in self.clients:
-            thread = threading.Thread(
-                target=client.train, args=(self.local_epochs, self.batch_size, stop_event)
-            )
-            threads.append((client, thread))
-            thread.start()
+        for idx,client in enumerate(self.clients):
+            duration = self._sample_round_duration(self.rng)
+            heapq.heappush(pq,(duration,idx))
 
-        if round_num == 0:
-            time.sleep(1)
+        while pq:
+            finish_time,client_idx = heapq.heappop(pq)
+            client = self.clients[client_idx]
 
-        round_start_time = time.time()
-        while time.time() - round_start_time < self.timeout:
-            if all(not t.is_alive() for _, t in threads):
+            if finish_time > self.timeout:
+                late_ids = [client.client_id]
+                late_ids.extend(self.clients[ci].client_id for _, ci in pq)
+                for cid in late_ids:
+                    print(f"Cliente {cid} excedeu o tempo limite na rodada {round_num}.")
                 break
-            time.sleep(0.001)
 
-        stop_event.set()
-        for client, thread in threads:
-            thread.join()
-            if client.has_fresh_update():
-                client_weights.append(client.get_model_weights())
-                client_sizes.append(client.get_dataset_size())
-            else:
-                print(f"Cliente {client.client_id} excedeu o tempo limite na rodada {round_num}.")
+            client.train(self.local_epochs, self.batch_size,finish_time)
+            client_weights.append(client.get_model_weights())
+            client_sizes.append(client.get_dataset_size())
 
         print(
             f"Percentual de clientes na rodada {round_num + 1}: {100 * len(client_weights) / self.number_of_clients}%"
@@ -119,7 +126,12 @@ class Server:
         return client_weights, client_sizes
 
     def start_training(self):
+        """Simulacao por eventos discretos: O tempo de cada cliente eh amostrado
+        em cada rodada para estimar se haverá timeout ou não (sem threads, sem sleeps, sem lock). 
+        ."""
         self.start_time = time.time()
+        self.rng = random.Random(SIMULATION_SEED)
+
         for round_num in range(self.number_of_rounds):
             print(f"\nRodada {round_num + 1}")
             self.distribute_weights()
