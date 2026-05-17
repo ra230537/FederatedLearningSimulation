@@ -22,28 +22,13 @@ class Client:
         self.local_model = type(model)().to(get_device())
         set_model_weights(self.local_model, get_model_weights(model))
 
-    def train(self, local_epochs, batch_size, stop_event):
-        if stop_event.is_set():
-            return
-
-        self._has_fresh_update = False
-        start_training_time = time.time()
-        connection_delay = random.uniform(MIN_CONNECTION_TIME, MAX_CONNECTION_TIME)
-        train_delay = random.uniform(MIN_TRAIN_TIME, MAX_TRAIN_TIME)
-        time.sleep(connection_delay)
+    def train(self, local_epochs, batch_size,duration):
 
         fit_start = time.time()
         self._fit(local_epochs, batch_size)
         fit_time = time.time() - fit_start
 
-        remaining_delay = max(0.0, train_delay - fit_time)
-        time.sleep(remaining_delay)
-
-        end_training_time = time.time()
-        print(f"Tempo de Execução do cliente {self.client_id}: {end_training_time-start_training_time:.2f}s (Fit real: {fit_time:.2f}s)")
-        if stop_event.is_set():
-            return
-        self._has_fresh_update = True
+        print(f"Tempo de Execução do cliente {self.client_id}: {duration:.2f}s (Fit real: {fit_time:.2f}s)")
 
     def _fit(self, local_epochs, batch_size):
         from utils.models import get_device
