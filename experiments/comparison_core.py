@@ -108,6 +108,7 @@ def compare_scenarios(
     horizon_seconds: list[float] | None = None,
     ema_alpha: float = 0.1,
     include_ema: bool = True,
+    title: str = "Comparacao de Resultados",
 ) -> dict:
     if len(scenario_specs) < 2:
         raise ValueError("comparison requires at least two scenarios")
@@ -139,6 +140,7 @@ def compare_scenarios(
         md_path,
         target_accuracies=target_accuracies or [],
         horizon_seconds=horizon_seconds or [],
+        title=title,
     )
     plot_accuracy(
         scenarios,
@@ -147,6 +149,7 @@ def compare_scenarios(
         horizon_seconds=horizon_seconds or [],
         ema_alpha=ema_alpha,
         include_ema=include_ema,
+        title=title,
     )
 
     return {"csv": csv_path, "markdown": md_path, "png": png_path, "rows": rows}
@@ -211,9 +214,10 @@ def write_markdown(
     output_path: Path,
     target_accuracies: list[float],
     horizon_seconds: list[float],
+    title: str = "Comparacao de Resultados",
 ) -> None:
     lines = [
-        "# Comparacao de Resultados",
+        f"# {title}",
         "",
         "## Entradas",
         "",
@@ -249,6 +253,7 @@ def plot_accuracy(
     horizon_seconds: list[float],
     ema_alpha: float = 0.1,
     include_ema: bool = True,
+    title: str = "Comparacao de Resultados",
 ) -> None:
     import matplotlib
 
@@ -311,7 +316,7 @@ def plot_accuracy(
             color="#666666",
         )
 
-    axis.set_title("Comparacao de acuracia por tempo simulado")
+    axis.set_title(title)
     axis.set_xlabel("Tempo simulado (s)")
     axis.set_ylabel("Acuracia")
     axis.grid(True, alpha=0.25)

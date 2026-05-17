@@ -69,6 +69,36 @@ def build_scenario_specs(rows: list[dict[str, str]]) -> list[ScenarioSpec]:
     return specs
 
 
+def rows_to_markdown_table(rows: list[dict]) -> str:
+    if not rows:
+        return "Sem metricas para exibir."
+
+    fieldnames = []
+    seen = set()
+    for row in rows:
+        for field in row:
+            if field not in seen:
+                fieldnames.append(field)
+                seen.add(field)
+
+    lines = [
+        "| " + " | ".join(fieldnames) + " |",
+        "| " + " | ".join(["---"] * len(fieldnames)) + " |",
+    ]
+    for row in rows:
+        values = [_markdown_value(row.get(field)) for field in fieldnames]
+        lines.append("| " + " | ".join(values) + " |")
+    return "\n".join(lines)
+
+
+def _markdown_value(value) -> str:
+    if value is None:
+        return "N/A"
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    return str(value).replace("|", "\\|")
+
+
 def main() -> None:
     import streamlit as st
 
@@ -78,6 +108,12 @@ def main() -> None:
     st.write(
         "Informe dois ou mais cenarios. A UI gera os mesmos arquivos do CLI: "
         "Markdown, CSV e PNG."
+    )
+
+    title = st.text_input(
+        "Titulo",
+        value="Comparacao de Resultados",
+        help="Aparece no topo do Markdown e como titulo do grafico.",
     )
 
     scenario_count = st.number_input(
@@ -159,6 +195,7 @@ def main() -> None:
                 horizon_seconds=horizon_seconds,
                 ema_alpha=ema_alpha,
                 include_ema=include_ema,
+                title=title.strip() or "Comparacao de Resultados",
             )
         except Exception as exc:
             st.error(str(exc))
@@ -179,7 +216,7 @@ def main() -> None:
         st.image(str(result["png"]))
 
         st.subheader("Metricas")
-        st.dataframe(result["rows"], use_container_width=True)
+        st.markdown(rows_to_markdown_table(result["rows"]))
 
         st.subheader("Markdown")
         st.markdown(Path(result["markdown"]).read_text(encoding="utf-8"))

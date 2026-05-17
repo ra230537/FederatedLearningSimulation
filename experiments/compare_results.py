@@ -8,6 +8,7 @@ Example:
       --target-accuracy 0.60 ^
       --horizon-seconds 4000 ^
       --horizon-seconds 5000 ^
+      --title "Sync vs Async - CIFAR-10 IID p75" ^
       --output experiments/comparison_iid_p75_5000
 """
 
@@ -70,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--title",
+        default="Comparacao de Resultados",
+        help="Title used in the Markdown report and PNG chart.",
+    )
+    parser.add_argument(
         "--ema-alpha",
         type=float,
         default=0.1,
@@ -96,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
             horizon_seconds=args.horizon_seconds,
             ema_alpha=args.ema_alpha,
             include_ema=not args.no_ema,
+            title=args.title,
         )
     except ValueError as exc:
         parser.error(str(exc))
