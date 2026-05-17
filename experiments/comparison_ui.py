@@ -178,7 +178,7 @@ def main() -> None:
 
     output_base = st.text_input(
         "Saida",
-        value="experiments/comparison_ui_output",
+        value="output/comparison_ui_output",
         help="Caminho base sem extensao. Serao gerados .md, .csv e .png.",
     )
 
