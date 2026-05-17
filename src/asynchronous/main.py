@@ -80,6 +80,7 @@ def main(
     stability_ema_alpha=STABILITY_EMA_ALPHA,
     stability_eval_every=STABILITY_EVAL_EVERY,
     stability_min_rounds=STABILITY_MIN_ROUNDS,
+    evaluation_frequency=1,
 ):
     accuracy_history = []
     if stop_on_stability or target_accuracy is not None:
@@ -160,6 +161,7 @@ def main(
             stability_ema_alpha=stability_ema_alpha,
             stability_eval_every=stability_eval_every,
             stability_min_rounds=stability_min_rounds,
+            evaluation_frequency=evaluation_frequency,
         )
 
         server.setup_clients()
@@ -243,6 +245,7 @@ if __name__ == "__main__":
         default=STABILITY_MIN_ROUNDS,
         help=f"Mínimo de rounds antes de considerar parada (default: {STABILITY_MIN_ROUNDS})",
     )
+    parser.add_argument("--eval-every", type=int, default=1)
     args = parser.parse_args()
 
     if args.non_iid:
@@ -272,4 +275,5 @@ if __name__ == "__main__":
             stability_ema_alpha=args.stability_ema_alpha,
             stability_eval_every=args.stability_eval_every,
             stability_min_rounds=args.stability_min_rounds,
+            evaluation_frequency=args.eval_every,
         )
